@@ -1220,24 +1220,43 @@ input  { font-family: inherit; }
 .dmt-label { font-size: 9px; }
 
 /* Settings panel (offset from theme panel) */
-.settings-panel { right: 68px; width: 300px; }
+/* ── Settings page (full tab view) ── */
+.settings-page {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
-.settings-field-label {
+.settings-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--sh);
+  padding: 20px 22px;
+}
+
+.settings-card-title {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--subtext);
-  margin-bottom: 8px;
+  margin-bottom: 14px;
 }
+
+/* Rate */
+.settings-rate-form { display: flex; flex-direction: column; }
 .settings-rate-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin-bottom: 10px;
 }
 .settings-currency {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
   color: var(--green);
 }
@@ -1245,54 +1264,62 @@ input  { font-family: inherit; }
   flex: 1;
   background: var(--surface2);
   border: 2px solid var(--border);
-  border-radius: calc(var(--radius) - 4px);
+  border-radius: calc(var(--radius) - 2px);
   outline: none;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
-  padding: 6px 10px;
+  padding: 8px 12px;
   transition: box-shadow var(--t);
 }
 .settings-rate-input:focus {
   box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--border);
 }
 .settings-per-hr {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--subtext);
 }
+.settings-apply-btn {
+  padding: 8px 18px;
+  border: 2px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: opacity var(--t), transform var(--t);
+}
+.settings-apply-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+
+/* Shared hint */
 .settings-hint {
   font-size: 11px;
   color: var(--subtext);
-  line-height: 1.55;
-  margin-bottom: 12px;
-}
-
-.settings-divider {
-  border: none;
-  border-top: 1.5px solid var(--border);
-  margin: 14px 0;
-  opacity: 0.4;
+  line-height: 1.6;
+  margin: 0;
 }
 
 /* Backup / restore */
 .settings-backup-row {
   display: flex;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 .settings-action-btn {
   flex: 1;
-  padding: 7px 10px;
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
+  padding: 10px 14px;
+  border: 2px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
   background: var(--surface2);
   color: var(--text);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
   cursor: pointer;
-  transition: background var(--t), box-shadow var(--t), transform var(--t);
+  transition: background var(--t), color var(--t), border-color var(--t), transform var(--t), box-shadow var(--t);
 }
 .settings-action-btn:hover {
   background: var(--accent);
@@ -1304,44 +1331,50 @@ input  { font-family: inherit; }
 .settings-error {
   font-size: 11px;
   color: var(--red);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 /* Prune */
 .settings-prune-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 .settings-prune-label {
-  font-size: 12px;
-  color: var(--subtext);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
   white-space: nowrap;
 }
 .settings-prune-select {
   flex: 1;
-  padding: 5px 8px;
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
+  padding: 7px 10px;
+  border: 2px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
   background: var(--surface2);
   color: var(--text);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 }
+.settings-prune-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
 .settings-prune-btn {
-  width: 100%;
-  padding: 7px;
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
+  flex: 1;
+  padding: 9px;
+  border: 2px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
   background: var(--surface2);
   color: var(--text);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
   cursor: pointer;
-  margin-bottom: 4px;
   transition: background var(--t), color var(--t), border-color var(--t), transform var(--t);
 }
 .settings-prune-btn:hover {
@@ -1355,17 +1388,19 @@ input  { font-family: inherit; }
   color: #fff;
   border-color: var(--red);
 }
-.settings-prune-btn.confirm:hover { opacity: 0.88; transform: translateY(-1px); }
-.settings-hint-btn {
+.settings-prune-btn.confirm:hover { opacity: 0.85; transform: translateY(-1px); }
+.settings-cancel-btn {
+  padding: 9px 16px;
+  border: 2px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
   background: none;
-  border: none;
   color: var(--subtext);
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
-  padding: 0;
-  margin-bottom: 8px;
-  text-decoration: underline;
+  transition: color var(--t), border-color var(--t);
 }
+.settings-cancel-btn:hover { color: var(--text); border-color: var(--text); }
 
 /* ── Preset grid (theme panel) ── */
 .preset-grid {

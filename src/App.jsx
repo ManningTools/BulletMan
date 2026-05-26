@@ -28,8 +28,7 @@ export default function App() {
   const [input, setInput]         = useState('');
   const [addClientId,  setAddClientId]  = useState('');
   const [addProjectId, setAddProjectId] = useState('');
-  const [showTheme,    setShowTheme]    = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [showTheme, setShowTheme] = useState(false);
   const [weekOffset,   setWeekOffset]   = useState(0);
   const [pinnedIds,  setPinnedIds]  = useState([]);
   const [dragOverId, setDragOverId] = useState(null);
@@ -117,8 +116,7 @@ export default function App() {
     setInput('');
     inputRef.current?.focus();
   }
-  function toggleTheme()    { setShowTheme(v => !v); setShowSettings(false); }
-  function toggleSettings() { setShowSettings(v => !v); setShowTheme(false); }
+  function toggleTheme() { setShowTheme(v => !v); }
 
   // Called by TaskItem pin button
   function handlePin(task) {
@@ -167,19 +165,10 @@ export default function App() {
               <button className={`tab-btn ${tab === 'clients' ? 'active' : ''}`} onClick={() => setTab('clients')}>
                 Clients
               </button>
+              <button className={`tab-btn ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>
+                Settings
+              </button>
             </nav>
-
-            {/* Settings (hourly rate) */}
-            <button
-              className={`theme-toggle ${showSettings ? 'active' : ''}`}
-              onClick={toggleSettings}
-              title="Settings / hourly rate"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="1" x2="12" y2="23"/>
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-              </svg>
-            </button>
 
             {/* Theme */}
             <button
@@ -198,28 +187,18 @@ export default function App() {
           </div>
         </div>
 
-        {(showTheme || showSettings) && (
+        {showTheme && (
           <div className="theme-panel-anchor">
-            {showSettings && (
-              <SettingsPanel
-                globalHourlyRate={globalHourlyRate}
-                onSetRate={setGlobalHourlyRate}
-                onPruneOldTasks={pruneOldTasks}
-                onClose={() => setShowSettings(false)}
-              />
-            )}
-            {showTheme && (
-              <ThemePanel
-                themeId={themeId}
-                isDark={isDark}
-                customBg={customBg}
-                customAccent={customAccent}
-                onSetPreset={setPreset}
-                onToggleDark={toggleDark}
-                onActivateCustom={activateCustom}
-                onClose={() => setShowTheme(false)}
-              />
-            )}
+            <ThemePanel
+              themeId={themeId}
+              isDark={isDark}
+              customBg={customBg}
+              customAccent={customAccent}
+              onSetPreset={setPreset}
+              onToggleDark={toggleDark}
+              onActivateCustom={activateCustom}
+              onClose={() => setShowTheme(false)}
+            />
           </div>
         )}
       </header>
@@ -366,6 +345,14 @@ export default function App() {
             onAddProject={addProject}
             onEditProject={editProject}
             onDeleteProject={deleteProject}
+          />
+        )}
+
+        {tab === 'settings' && (
+          <SettingsPanel
+            globalHourlyRate={globalHourlyRate}
+            onSetRate={setGlobalHourlyRate}
+            onPruneOldTasks={pruneOldTasks}
           />
         )}
       </main>

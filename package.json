@@ -56,6 +56,9 @@
         }
       ]
     },
+    "portable": {
+      "artifactName": "${productName} ${version} Portable.${ext}"
+    },
     "mac": {
       "target": [
         { "target": "dmg", "arch": ["x64", "arm64"] }

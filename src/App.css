@@ -224,9 +224,33 @@ input  { font-family: inherit; }
 /* Main row inside task */
 .task-main-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 12px 14px;
+}
+
+/* Two-row content column (name above, controls below) */
+.task-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Top line: just the task name */
+.task-name-line {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* Bottom line: client chip + all controls */
+.task-controls-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 /* Completion check button */
@@ -240,6 +264,7 @@ input  { font-family: inherit; }
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  margin-top: 1px;
   transition: background var(--t), border-color var(--t), transform var(--t), box-shadow var(--t);
 }
 .task-item:not(.completed) .check-btn:hover {
@@ -254,12 +279,10 @@ input  { font-family: inherit; }
 
 /* Task text */
 .task-text {
-  flex: 1;
   font-size: 14px;
   font-weight: 600;
   line-height: 1.4;
   word-break: break-word;
-  min-width: 0;
   color: var(--text);
 }
 .task-item.completed .task-text {
@@ -269,7 +292,7 @@ input  { font-family: inherit; }
 
 /* Inline name-edit input */
 .task-edit-input {
-  flex: 1;
+  width: 100%;
   background: none;
   border: none;
   border-bottom: 2px solid var(--accent);
@@ -1110,6 +1133,9 @@ input  { font-family: inherit; }
 }
 
 .theme-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -1117,6 +1143,40 @@ input  { font-family: inherit; }
   color: var(--subtext);
   margin-bottom: 14px;
 }
+
+/* Light / Dark mode toggle */
+.dark-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  color: var(--subtext);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--t), color var(--t), border-color var(--t), box-shadow var(--t);
+}
+.dark-mode-toggle:hover {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+  box-shadow: var(--sh-sm);
+}
+.dark-mode-toggle.dark {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+.dark-mode-toggle.dark:hover {
+  opacity: 0.85;
+}
+.dmt-icon { font-size: 12px; line-height: 1; }
+.dmt-label { font-size: 9px; }
 
 /* Settings panel (offset from theme panel) */
 .settings-panel { right: 68px; }
@@ -1484,15 +1544,6 @@ input  { font-family: inherit; }
    ══════════════════════════════════════════════════════════════════════════════ */
 
 /* ── Task text block (wraps text + client chip) ── */
-.task-text-block {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-}
-
 /* ── Client chip (inline on task item) ── */
 .client-chip {
   display: inline-flex;

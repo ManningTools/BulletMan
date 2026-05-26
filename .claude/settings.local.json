@@ -10,7 +10,26 @@
       "Bash(python3 *)",
       "Read(//tmp/**)",
       "Bash(curl -s http://localhost:5173/)",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(npx eslint *)",
+      "Bash(dpkg -l libnss3 libgbm1 libgtk-3-0)",
+      "Bash(apt-get install *)",
+      "Bash(sudo apt-get install -y xvfb libnss3 libgbm1 libasound2t64 libgtk-3-0 libxss1 libxkbcommon0 libatk-bridge2.0-0 libcups2 libdrm2)",
+      "Bash(npm install *)",
+      "Bash(tmux new-session *)",
+      "Bash(sudo apt-get install -y tmux)",
+      "Bash(tmux -V)",
+      "Bash(DISPLAY=:0 node *)",
+      "Bash(DISPLAY=:0 NODE_ENV=production node_modules/electron/dist/electron --no-sandbox .)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(pkill -f \"electron.*BulletMan\")",
+      "Bash(echo \"launched PID $!\")",
+      "Bash(npm uninstall *)",
+      "Bash(git add *)",
+      "Bash(xvfb-run --version)",
+      "Bash(dpkg -l xvfb libnss3 libgbm1 libgtk-3-0)",
+      "Bash(awk '{print $2, $3}')",
+      "Bash(npm ls *)"
     ]
   }
 }

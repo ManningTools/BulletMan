@@ -35,7 +35,7 @@ export default function App() {
     addSubtask, toggleSubtask, deleteSubtask,
   } = useTasks();
 
-  const { themeId, customBg, customAccent, setPreset, activateCustom } = useTheme();
+  const { themeId, isDark, customBg, customAccent, setPreset, toggleDark, activateCustom } = useTheme();
   const { globalHourlyRate, setGlobalHourlyRate } = useSettings();
   const {
     clients, CLIENT_COLORS,
@@ -194,9 +194,11 @@ export default function App() {
             {showTheme && (
               <ThemePanel
                 themeId={themeId}
+                isDark={isDark}
                 customBg={customBg}
                 customAccent={customAccent}
                 onSetPreset={setPreset}
+                onToggleDark={toggleDark}
                 onActivateCustom={activateCustom}
                 onClose={() => setShowTheme(false)}
               />

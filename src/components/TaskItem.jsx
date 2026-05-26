@@ -133,136 +133,145 @@ export default function TaskItem({
           <span className="checkmark">{completed ? '✓' : ''}</span>
         </button>
 
-        {/* Task name / edit */}
-        {editing ? (
-          <input
-            ref={nameRef}
-            className="task-edit-input"
-            value={editText}
-            onChange={e => setEditText(e.target.value)}
-            onBlur={commitEdit}
-            onKeyDown={handleEditKey}
-          />
-        ) : (
-          <div className="task-text-block">
-            <span className="task-text">{text}</span>
+        {/* Content column: name on top, controls below */}
+        <div className="task-content">
+
+          {/* Task name / edit */}
+          <div className="task-name-line">
+            {editing ? (
+              <input
+                ref={nameRef}
+                className="task-edit-input"
+                value={editText}
+                onChange={e => setEditText(e.target.value)}
+                onBlur={commitEdit}
+                onKeyDown={handleEditKey}
+              />
+            ) : (
+              <span className="task-text">{text}</span>
+            )}
+          </div>
+
+          {/* Controls row: client chip + all buttons */}
+          <div className="task-controls-line">
+            {/* Client chip */}
             {assignedClient && (
               <span className="client-chip" style={{ background: assignedClient.color }}>
                 {assignedClient.name}
                 {assignedProject && <span className="client-chip-proj"> / {assignedProject.name}</span>}
               </span>
             )}
+
+            <div className="task-controls">
+              {/* Subtask toggle */}
+              <button
+                className={`subtask-toggle-btn${showSubtasks ? ' open' : ''}`}
+                onClick={() => setShowSubtasks(v => !v)}
+                title={showSubtasks ? 'Hide subtasks' : 'Show subtasks'}
+              >
+                {subCount > 0
+                  ? <span className="subtask-badge">{subDone}/{subCount}</span>
+                  : <span className="subtask-badge-empty">sub</span>
+                }
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                  <path d={showSubtasks ? 'M1 7l4-4 4 4' : 'M1 3l4 4 4-4'} stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                </svg>
+              </button>
+
+              {/* Timer display (click to edit) */}
+              {editingTime ? (
+                <input
+                  ref={timeRef}
+                  className="time-edit-input"
+                  value={timeInput}
+                  onChange={e => setTimeInput(e.target.value)}
+                  onBlur={commitTimeEdit}
+                  onKeyDown={handleTimeKey}
+                  placeholder="e.g. 1h 30m"
+                  title="Enter time: 1h 30m, 90, 1:30"
+                />
+              ) : (
+                <span
+                  className="timer-display"
+                  onClick={startTimeEdit}
+                  title="Click to edit logged time"
+                  style={{ cursor: 'pointer' }}
+                >
+                  {formatTime(displaySeconds)}
+                </span>
+              )}
+
+              {/* Earnings badge */}
+              {earnings > 0 && !editingTime && (
+                <span className="earnings-badge">{formatMoney(earnings)}</span>
+              )}
+
+              {/* Client assign button */}
+              {!editing && clients.length > 0 && (
+                <button
+                  className={`client-btn${assignedClient ? ' assigned' : ''}${showClient ? ' open' : ''}`}
+                  onClick={toggleClientPanel}
+                  title={assignedClient ? `Client: ${assignedClient.name}` : 'Assign to client'}
+                  style={assignedClient ? { borderColor: assignedClient.color, color: assignedClient.color } : {}}
+                >
+                  ◎
+                </button>
+              )}
+
+              {/* Rate button */}
+              {!editing && !showRate && (
+                <button
+                  className={`rate-btn${hasCustomRate ? ' custom' : ''}`}
+                  onClick={startRateEdit}
+                  title={hasCustomRate ? `Custom rate: $${hourlyRate}/hr` : `Rate: $${globalHourlyRate}/hr (global)`}
+                >
+                  $
+                </button>
+              )}
+
+              {/* Name edit button */}
+              {!editing && !editingTime && (
+                <button className="edit-btn" onClick={startEdit} title="Edit task name">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+              )}
+
+              {/* Pin mini timer */}
+              {isElectron && !completed && !editing && (
+                <button
+                  className={`pin-btn${isPinned ? ' pinned' : ''}`}
+                  onClick={onPin}
+                  title={isPinned ? 'Unpin mini timer' : 'Pin mini timer'}
+                  style={isPinned ? { borderColor: taskColor, color: taskColor, background: taskColor + '18' } : {}}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned ? taskColor : 'none'} stroke={isPinned ? taskColor : 'currentColor'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="17" x2="12" y2="22"/>
+                    <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/>
+                  </svg>
+                </button>
+              )}
+
+              {/* Play / pause */}
+              {!completed && !editing && (
+                <button
+                  className={`timer-btn ${timerRunning ? 'pause' : 'play'}`}
+                  onClick={() => onToggleTimer(id)}
+                  title={timerRunning ? 'Pause' : 'Start timer'}
+                >
+                  {timerRunning ? '⏸' : '▶'}
+                </button>
+              )}
+
+              {/* Delete */}
+              {!editing && (
+                <button className="delete-btn" onClick={() => onDelete(id)} title="Delete task">✕</button>
+              )}
+            </div>
           </div>
-        )}
 
-        {/* Right-side controls */}
-        <div className="task-controls">
-          {/* Subtask toggle */}
-          <button
-            className={`subtask-toggle-btn${showSubtasks ? ' open' : ''}`}
-            onClick={() => setShowSubtasks(v => !v)}
-            title={showSubtasks ? 'Hide subtasks' : 'Show subtasks'}
-          >
-            {subCount > 0
-              ? <span className="subtask-badge">{subDone}/{subCount}</span>
-              : <span className="subtask-badge-empty">sub</span>
-            }
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-              <path d={showSubtasks ? 'M1 7l4-4 4 4' : 'M1 3l4 4 4-4'} stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-            </svg>
-          </button>
-
-          {/* Timer display (click to edit) */}
-          {editingTime ? (
-            <input
-              ref={timeRef}
-              className="time-edit-input"
-              value={timeInput}
-              onChange={e => setTimeInput(e.target.value)}
-              onBlur={commitTimeEdit}
-              onKeyDown={handleTimeKey}
-              placeholder="e.g. 1h 30m"
-              title="Enter time: 1h 30m, 90, 1:30"
-            />
-          ) : (
-            <span
-              className="timer-display"
-              onClick={startTimeEdit}
-              title="Click to edit logged time"
-              style={{ cursor: 'pointer' }}
-            >
-              {formatTime(displaySeconds)}
-            </span>
-          )}
-
-          {/* Earnings badge */}
-          {earnings > 0 && !editingTime && (
-            <span className="earnings-badge">{formatMoney(earnings)}</span>
-          )}
-
-          {/* Client assign button */}
-          {!editing && clients.length > 0 && (
-            <button
-              className={`client-btn${assignedClient ? ' assigned' : ''}${showClient ? ' open' : ''}`}
-              onClick={toggleClientPanel}
-              title={assignedClient ? `Client: ${assignedClient.name}` : 'Assign to client'}
-              style={assignedClient ? { borderColor: assignedClient.color, color: assignedClient.color } : {}}
-            >
-              ◎
-            </button>
-          )}
-
-          {/* Rate button */}
-          {!editing && !showRate && (
-            <button
-              className={`rate-btn${hasCustomRate ? ' custom' : ''}`}
-              onClick={startRateEdit}
-              title={hasCustomRate ? `Custom rate: $${hourlyRate}/hr` : `Rate: $${globalHourlyRate}/hr (global)`}
-            >
-              $
-            </button>
-          )}
-
-          {/* Name edit button */}
-          {!editing && !editingTime && (
-            <button className="edit-btn" onClick={startEdit} title="Edit task name">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
-            </button>
-          )}
-
-          {/* Pin mini timer */}
-          {isElectron && !completed && !editing && (
-            <button
-              className={`pin-btn${isPinned ? ' pinned' : ''}`}
-              onClick={onPin}
-              title={isPinned ? 'Unpin mini timer' : 'Pin mini timer'}
-              style={isPinned ? { borderColor: taskColor, color: taskColor, background: taskColor + '18' } : {}}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned ? taskColor : 'none'} stroke={isPinned ? taskColor : 'currentColor'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="17" x2="12" y2="22"/>
-                <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/>
-              </svg>
-            </button>
-          )}
-
-          {/* Play / pause */}
-          {!completed && !editing && (
-            <button
-              className={`timer-btn ${timerRunning ? 'pause' : 'play'}`}
-              onClick={() => onToggleTimer(id)}
-              title={timerRunning ? 'Pause' : 'Start timer'}
-            >
-              {timerRunning ? '⏸' : '▶'}
-            </button>
-          )}
-
-          {/* Delete */}
-          {!editing && (
-            <button className="delete-btn" onClick={() => onDelete(id)} title="Delete task">✕</button>
-          )}
         </div>
       </div>
 

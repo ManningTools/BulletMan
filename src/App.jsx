@@ -35,8 +35,9 @@ export default function App() {
   const [weekOffset,   setWeekOffset]   = useState(0);
   const [pinnedIds,    setPinnedIds]    = useState([]);
   const [dragOverId,   setDragOverId]   = useState(null);
-  const draggedId = useRef(null);
-  const inputRef  = useRef(null);
+  const draggedId  = useRef(null);
+  const inputRef   = useRef(null);
+  const headerRef  = useRef(null);
 
   const {
     tasks, allTasks,
@@ -105,6 +106,19 @@ export default function App() {
     return () => { removeToggle?.(); removeClosed?.(); removeComplete?.(); };
   }, [toggleTimer, completeTask]);
 
+  // ── Close all panels when clicking outside the header ─────────────────────────
+  useEffect(() => {
+    function handler(e) {
+      if (headerRef.current && !headerRef.current.contains(e.target)) {
+        setShowSettings(false);
+        setShowData(false);
+        setShowTheme(false);
+      }
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   // ── Export handlers ───────────────────────────────────────────────────────────
   function handleExportDay()   { exportDay(tasks, globalHourlyRate, todayKey(), clients); }
   function handleExportWeek()  { exportWeek(allTasks, globalHourlyRate, weekOffset, clients); }
@@ -149,7 +163,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="app-header">
+      <header className="app-header" ref={headerRef}>
         <div className="header-inner">
 
           <div className="header-left">
@@ -232,7 +246,6 @@ export default function App() {
                 onSetPreset={setPreset}
                 onToggleDark={toggleDark}
                 onActivateCustom={activateCustom}
-                onClose={() => setShowTheme(false)}
               />
             )}
           </div>

@@ -1,26 +1,16 @@
-import { useRef, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { PRESETS } from '../hooks/useTheme';
 
-export default function ThemePanel({ themeId, isDark, customBg, customAccent, onSetPreset, onToggleDark, onActivateCustom, onClose }) {
-  const panelRef = useRef(null);
+export default function ThemePanel({ themeId, isDark, customBg, customAccent, onSetPreset, onToggleDark, onActivateCustom }) {
   const [localBg, setLocalBg] = useState(customBg);
   const [localAccent, setLocalAccent] = useState(customAccent);
-
-  // Close on outside click
-  useEffect(() => {
-    function handler(e) {
-      if (panelRef.current && !panelRef.current.contains(e.target)) onClose();
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [onClose]);
 
   function handleCustomApply() {
     onActivateCustom(localBg, localAccent);
   }
 
   return (
-    <div className="theme-panel" ref={panelRef}>
+    <div className="theme-panel">
       <div className="theme-panel-header">
         <span>Color Theme</span>
         {/* Light / Dark toggle */}

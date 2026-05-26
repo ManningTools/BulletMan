@@ -1246,6 +1246,8 @@ input  { font-family: inherit; }
 }
 .settings-rate-input {
   flex: 1;
+  min-width: 0;
+  width: 0;
   background: var(--surface2);
   border: 2px solid var(--border);
   border-radius: calc(var(--radius) - 4px);

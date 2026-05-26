@@ -1,16 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 
 export default function SettingsPanel({ globalHourlyRate, onSetRate, onClose }) {
   const [input, setInput] = useState(globalHourlyRate > 0 ? String(globalHourlyRate) : '');
-  const panelRef = useRef(null);
-
-  useEffect(() => {
-    function handler(e) {
-      if (panelRef.current && !panelRef.current.contains(e.target)) onClose();
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [onClose]);
 
   function handleApply(e) {
     e.preventDefault();
@@ -19,7 +10,7 @@ export default function SettingsPanel({ globalHourlyRate, onSetRate, onClose }) 
   }
 
   return (
-    <div className="theme-panel settings-panel" ref={panelRef}>
+    <div className="theme-panel settings-panel">
       <div className="theme-panel-header">Hourly Rate</div>
 
       <form onSubmit={handleApply}>

@@ -1,21 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 
 const STORAGE_KEYS = ['bulletman_tasks', 'bulletman_clients', 'bulletman_settings', 'bulletman_theme'];
 
-export default function DataPanel({ onPruneOldTasks, onClose }) {
+export default function DataPanel({ onPruneOldTasks }) {
   const [pruneDays,    setPruneDays]    = useState(90);
   const [pruneConfirm, setPruneConfirm] = useState(false);
   const [importError,  setImportError]  = useState('');
-  const panelRef  = useRef(null);
   const importRef = useRef(null);
-
-  useEffect(() => {
-    function handler(e) {
-      if (panelRef.current && !panelRef.current.contains(e.target)) onClose();
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [onClose]);
 
   // ── Backup ──────────────────────────────────────────────────────────────────
   function handleExport() {
@@ -64,9 +55,8 @@ export default function DataPanel({ onPruneOldTasks, onClose }) {
   }
 
   return (
-    <div className="theme-panel data-panel" ref={panelRef}>
+    <div className="theme-panel data-panel">
 
-      {/* ── Backup / Restore ── */}
       <div className="theme-panel-header">Data Backup</div>
       <div className="settings-backup-row">
         <button className="settings-action-btn" onClick={handleExport}>↓ Export</button>
@@ -78,7 +68,6 @@ export default function DataPanel({ onPruneOldTasks, onClose }) {
 
       <div className="data-panel-divider" />
 
-      {/* ── Prune ── */}
       <div className="theme-panel-header">Prune Old Tasks</div>
       <div className="settings-prune-row">
         <span className="settings-prune-label">Older than</span>

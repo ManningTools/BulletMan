@@ -51,22 +51,3 @@ jobs:
           files: |
             release/*.exe
 
-  # ── macOS: DMG (Intel + Apple Silicon) ───────────────────────────────────
-  build-mac:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - run: npm ci
-      - run: npm run electron:build:mac
-
-      - name: Upload macOS assets
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            release/*.dmg

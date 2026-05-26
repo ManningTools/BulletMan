@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>BulletMan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;900&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      font-family: 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+    }
+
+    /* Outer wrapper: leaves room for the drop-shadow */
+    .shell {
+      width: 100%;
+      height: 100%;
+      padding: 1px 1px 5px 1px;
+      display: flex;
+      align-items: stretch;
+    }
+
+    /* The visible card */
+    .card {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 9px 0 0;
+      background: #fff;
+      border: 2px solid #121212;
+      box-shadow: 0 4px 0 0 #121212;
+      border-radius: 10px;
+      overflow: hidden;
+      -webkit-app-region: drag;
+    }
+
+    /* ── Color stripe ── */
+    .stripe {
+      width: 5px;
+      align-self: stretch;
+      background: #ccc;
+      flex-shrink: 0;
+      transition: background 0.25s;
+    }
+
+    /* ── Status dot ── */
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      border: 1.5px solid #bbb;
+      background: transparent;
+      flex-shrink: 0;
+      transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+    }
+    .dot.running {
+      border-color: transparent;
+      box-shadow: 0 0 0 2.5px rgba(0,0,0,0.12);
+    }
+
+    /* ── Task name / abbreviation ── */
+    .name-wrap {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+    }
+
+    .task-name {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #121212;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.2;
+      letter-spacing: 0.01em;
+    }
+    .task-name.idle { color: #999; font-weight: 600; }
+
+    .task-abbrev {
+      font-size: 14px;
+      font-weight: 900;
+      color: #121212;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+    .task-abbrev.idle { color: #999; }
+
+    /* ── Time display ── */
+    .time {
+      font-size: 12.5px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.03em;
+      color: #121212;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ── All buttons share no-drag ── */
+    button {
+      -webkit-app-region: no-drag;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-family: inherit;
+      color: #121212;
+      border-radius: 5px;
+      padding: 0;
+      transition: background 0.1s;
+    }
+    button:hover { background: rgba(0,0,0,0.07); }
+
+    /* Aa abbreviation toggle */
+    .abbrev-btn {
+      width: 22px;
+      height: 22px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: #999;
+      border: 1.5px solid #ddd;
+    }
+    .abbrev-btn.on {
+      color: #121212;
+      border-color: #121212;
+    }
+
+    /* Play / pause */
+    .play-btn {
+      width: 28px;
+      height: 28px;
+      font-size: 12px;
+      border: 2px solid #121212;
+    }
+    .play-btn:hover:not(:disabled) { background: rgba(0,0,0,0.07); }
+    .play-btn.running { color: #fff; }
+    .play-btn:disabled { opacity: 0.28; cursor: default; border-color: #bbb; }
+    .play-btn:disabled:hover { background: transparent; }
+
+    /* Complete check */
+    .complete-btn {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid #ccc;
+      font-size: 10px;
+      font-weight: 900;
+      color: transparent;
+      background: transparent;
+      flex-shrink: 0;
+      transition: border-color 0.15s, background 0.15s, color 0.15s, transform 0.1s;
+    }
+    .complete-btn:hover:not(.done) {
+      border-color: #888;
+      transform: scale(1.1);
+    }
+    .complete-btn.done {
+      color: #fff;
+      cursor: default;
+    }
+    .complete-btn.done:hover { transform: none; background: inherit; }
+
+    /* Close */
+    .close-btn {
+      width: 20px;
+      height: 20px;
+      font-size: 10px;
+      color: #bbb;
+    }
+    .close-btn:hover { color: #555; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="card" id="card">
+      <div class="stripe" id="stripe"></div>
+      <span class="dot" id="dot"></span>
+
+      <div class="name-wrap" id="nameWrap">
+        <!-- .task-name or .task-abbrev is shown depending on mode -->
+      </div>
+
+      <span class="time" id="timeDisplay">0:00:00</span>
+
+      <button class="abbrev-btn"   id="abbrevBtn"   title="Toggle name / initials">Aa</button>
+      <button class="play-btn"    id="playBtn"    disabled>▶</button>
+      <button class="complete-btn" id="completeBtn" title="Mark complete">✓</button>
+      <button class="close-btn"   id="closeBtn"   title="Unpin">✕</button>
+    </div>
+  </div>
+
+  <script>
+    // ── Identity ──────────────────────────────────────────────────────────────
+    const TASK_ID = new URLSearchParams(location.search).get('taskId') || '';
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    // Pushed from App.jsx via IPC whenever tasks change:
+    // { id, text, timerRunning, timerStartedAt, elapsedSeconds, color }
+    let taskState  = null;
+    let abbreviated = false;   // toggle between full name and initials
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function fmt(s) {
+      const h   = Math.floor(s / 3600);
+      const m   = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    }
+
+    function initials(text) {
+      return (text || '').split(/\s+/).map(w => w[0] || '').join('').toUpperCase().slice(0, 4);
+    }
+
+    function liveSeconds() {
+      if (!taskState) return 0;
+      const base = taskState.elapsedSeconds || 0;
+      if (taskState.timerRunning && taskState.timerStartedAt) {
+        return base + Math.floor((Date.now() - taskState.timerStartedAt) / 1000);
+      }
+      return base;
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
+    function render() {
+      const stripe      = document.getElementById('stripe');
+      const dot         = document.getElementById('dot');
+      const nameWrap    = document.getElementById('nameWrap');
+      const timeEl      = document.getElementById('timeDisplay');
+      const playBtn     = document.getElementById('playBtn');
+      const abbrevBtn   = document.getElementById('abbrevBtn');
+      const completeBtn = document.getElementById('completeBtn');
+
+      // Color
+      const color = taskState?.color || '#ccc';
+      stripe.style.background = color;
+
+      // Abbrev button state
+      abbrevBtn.classList.toggle('on', abbreviated);
+
+      if (!taskState) {
+        // ── Idle ──
+        dot.className = 'dot';
+        dot.style.borderColor = '#bbb';
+        dot.style.background  = 'transparent';
+        dot.style.boxShadow   = 'none';
+
+        nameWrap.innerHTML = '<span class="task-name idle">No active task</span>';
+        timeEl.textContent  = '0:00:00';
+        playBtn.textContent = '▶';
+        playBtn.className   = 'play-btn';
+        playBtn.disabled    = true;
+        playBtn.style.background = '';
+
+        completeBtn.className        = 'complete-btn';
+        completeBtn.style.borderColor = '#ccc';
+        completeBtn.style.background  = 'transparent';
+        completeBtn.disabled          = true;
+        return;
+      }
+
+      const done = !!taskState.completed;
+
+      // ── Complete button ──
+      completeBtn.disabled = done;
+      if (done) {
+        completeBtn.className        = 'complete-btn done';
+        completeBtn.style.background  = color;
+        completeBtn.style.borderColor = color;
+        completeBtn.title             = 'Completed';
+      } else {
+        completeBtn.className        = 'complete-btn';
+        completeBtn.style.background  = 'transparent';
+        completeBtn.style.borderColor = color;
+        completeBtn.title             = 'Mark complete';
+      }
+
+      // ── Task name / initials ──
+      if (abbreviated) {
+        nameWrap.innerHTML = `<span class="task-abbrev" style="color:${color};${done ? 'opacity:0.45' : ''}">${initials(taskState.text)}</span>`;
+      } else {
+        nameWrap.innerHTML = `<span class="task-name" style="${done ? 'text-decoration:line-through;opacity:0.45' : ''}">${escHtml(taskState.text)}</span>`;
+      }
+
+      // ── Time ──
+      timeEl.textContent = fmt(liveSeconds());
+      timeEl.style.opacity = done ? '0.45' : '1';
+
+      // ── Play button — hidden when completed ──
+      if (done) {
+        playBtn.className        = 'play-btn';
+        playBtn.disabled         = true;
+        playBtn.style.background = '';
+        playBtn.style.borderColor = '#ccc';
+        playBtn.style.opacity    = '0.3';
+        dot.className = 'dot';
+        dot.style.background = 'transparent';
+        dot.style.borderColor = '#ccc';
+        dot.style.boxShadow = 'none';
+        return;
+      }
+
+      playBtn.style.opacity = '1';
+
+      // ── Running vs paused ──
+      playBtn.disabled = false;
+      if (taskState.timerRunning) {
+        dot.className = 'dot running';
+        dot.style.background = color;
+        dot.style.borderColor = 'transparent';
+        dot.style.boxShadow = `0 0 0 2.5px ${color}40`;
+
+        playBtn.textContent = '⏸';
+        playBtn.className   = 'play-btn running';
+        playBtn.style.background = color;
+        playBtn.style.borderColor = color;
+        playBtn.title = 'Pause';
+      } else {
+        dot.className = 'dot';
+        dot.style.background = 'transparent';
+        dot.style.borderColor = '#bbb';
+        dot.style.boxShadow = 'none';
+
+        playBtn.textContent = '▶';
+        playBtn.className   = 'play-btn';
+        playBtn.style.background = '';
+        playBtn.style.borderColor = '#121212';
+        playBtn.title = 'Resume';
+      }
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── Live tick ─────────────────────────────────────────────────────────────
+    setInterval(() => {
+      if (taskState?.timerRunning) {
+        document.getElementById('timeDisplay').textContent = fmt(liveSeconds());
+      }
+    }, 1000);
+
+    // ── IPC ───────────────────────────────────────────────────────────────────
+    window.miniAPI.onStateUpdate((state) => {
+      taskState = state;
+      render();
+    });
+
+    // ── Controls ──────────────────────────────────────────────────────────────
+    document.getElementById('playBtn').addEventListener('click', () => {
+      if (taskState) window.miniAPI.toggleTimer(taskState.id);
+    });
+
+    document.getElementById('abbrevBtn').addEventListener('click', () => {
+      abbreviated = !abbreviated;
+      render();
+    });
+
+    document.getElementById('completeBtn').addEventListener('click', () => {
+      if (taskState && !taskState.completed) {
+        window.miniAPI.completeTask(taskState.id);
+      }
+    });
+
+    document.getElementById('closeBtn').addEventListener('click', () => {
+      window.miniAPI.close(TASK_ID);
+    });
+
+    // ── Initial render ────────────────────────────────────────────────────────
+    render();
+  </script>
+</body>
+</html>

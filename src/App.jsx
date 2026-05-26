@@ -1,4 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+
+// Fixed palette used when a task has no client colour
+const MINI_COLORS = ['#7c3aed','#db2777','#d97706','#059669','#2563eb','#dc2626','#0891b2','#65a30d'];
 import { useTasks } from './hooks/useTasks';
 import { useTheme } from './hooks/useTheme';
 import { useSettings } from './hooks/useSettings';
@@ -20,7 +23,8 @@ export default function App() {
   const [addProjectId, setAddProjectId] = useState('');
   const [showTheme,    setShowTheme]    = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [weekOffset, setWeekOffset]     = useState(0);
+  const [weekOffset,   setWeekOffset]   = useState(0);
+  const [pinnedIds, setPinnedIds] = useState([]); // taskIds with open mini windows
   const inputRef = useRef(null);
 
   const {
@@ -39,6 +43,58 @@ export default function App() {
     addProject, editProject, deleteProject,
   } = useClients();
 
+  // ── Mini timer: colour for each task (stable across renders) ─────────────────
+  const getTaskColor = useCallback((task, index) => {
+    if (task.clientId) {
+      const client = clients.find(c => c.id === task.clientId);
+      if (client?.color) return client.color;
+    }
+    return MINI_COLORS[index % MINI_COLORS.length];
+  }, [clients]);
+
+  // ── Mini timer: push live state to every pinned window when tasks change ─────
+  useEffect(() => {
+    if (!window.electronAPI?.updateMiniTimer) return;
+    pinnedIds.forEach(taskId => {
+      const idx  = tasks.findIndex(t => t.id === taskId);
+      if (idx < 0) return; // deleted tasks handled by the cleanup effect below
+      const task = tasks[idx];
+      window.electronAPI.updateMiniTimer(taskId, {
+        id:             task.id,
+        text:           task.text,
+        completed:      task.completed,
+        timerRunning:   task.timerRunning,
+        timerStartedAt: task.timerStartedAt,
+        elapsedSeconds: task.elapsedSeconds,
+        color:          getTaskColor(task, idx),
+      });
+    });
+  }, [tasks, pinnedIds, getTaskColor]);
+
+  // ── Mini timer: auto-close windows when tasks are deleted ─────────────────
+  useEffect(() => {
+    if (!window.electronAPI?.closeMiniTimer) return;
+    pinnedIds.forEach(taskId => {
+      if (!tasks.find(t => t.id === taskId)) {
+        window.electronAPI.closeMiniTimer({ taskId });
+        setPinnedIds(prev => prev.filter(id => id !== taskId));
+      }
+    });
+  }, [tasks, pinnedIds]);
+
+  // ── Mini timer: wire up IPC listeners (toggle + close notifications) ──────
+  useEffect(() => {
+    if (!window.electronAPI) return;
+
+    const removeToggle   = window.electronAPI.onTimerToggle(id => toggleTimer(id));
+    const removeClosed   = window.electronAPI.onMiniClosed(taskId =>
+      setPinnedIds(prev => prev.filter(id => id !== taskId))
+    );
+    const removeComplete = window.electronAPI.onTaskComplete(id => completeTask(id, true));
+
+    return () => { removeToggle?.(); removeClosed?.(); removeComplete?.(); };
+  }, [toggleTimer, completeTask]);
+
   // ── Export handlers ──────────────────────────────────────────────────────────
   function handleExportDay()   { exportDay(tasks, globalHourlyRate, todayKey(), clients); }
   function handleExportWeek()  { exportWeek(allTasks, globalHourlyRate, weekOffset, clients); }
@@ -53,6 +109,18 @@ export default function App() {
   }
   function toggleTheme()    { setShowTheme(v => !v); setShowSettings(false); }
   function toggleSettings() { setShowSettings(v => !v); setShowTheme(false); }
+
+  // Called by TaskItem pin button
+  function handlePin(task) {
+    if (!window.electronAPI) return;
+    if (pinnedIds.includes(task.id)) {
+      window.electronAPI.closeMiniTimer({ taskId: task.id });
+      setPinnedIds(prev => prev.filter(id => id !== task.id));
+    } else {
+      window.electronAPI.openMiniTimer({ taskId: task.id });
+      setPinnedIds(prev => [...prev, task.id]);
+    }
+  }
 
   // When client selection changes, reset project
   function handleAddClientChange(cId) {
@@ -189,7 +257,7 @@ export default function App() {
                 <p className="empty-hint">No tasks yet. Add one above to get started.</p>
               )}
 
-              {incomplete.map(task => (
+              {incomplete.map((task, i) => (
                 <TaskItem
                   key={task.id} task={task} globalHourlyRate={globalHourlyRate}
                   clients={clients}
@@ -197,13 +265,17 @@ export default function App() {
                   onDelete={deleteTask} onEdit={editTask}
                   onSetRate={setTaskRate} onSetTime={setTaskTime} onSetClient={setTaskClient}
                   onAddSubtask={addSubtask} onToggleSubtask={toggleSubtask} onDeleteSubtask={deleteSubtask}
+                  isElectron={!!window.electronAPI}
+                  isPinned={pinnedIds.includes(task.id)}
+                  taskColor={getTaskColor(task, i)}
+                  onPin={() => handlePin(task)}
                 />
               ))}
 
               {completed.length > 0 && (
                 <>
                   <div className="section-divider">Completed</div>
-                  {completed.map(task => (
+                  {completed.map((task, i) => (
                     <TaskItem
                       key={task.id} task={task} globalHourlyRate={globalHourlyRate}
                       clients={clients}
@@ -211,6 +283,10 @@ export default function App() {
                       onDelete={deleteTask} onEdit={editTask}
                       onSetRate={setTaskRate} onSetTime={setTaskTime} onSetClient={setTaskClient}
                       onAddSubtask={addSubtask} onToggleSubtask={toggleSubtask} onDeleteSubtask={deleteSubtask}
+                      isElectron={!!window.electronAPI}
+                      isPinned={pinnedIds.includes(task.id)}
+                      taskColor={getTaskColor(task, incomplete.length + i)}
+                      onPin={() => handlePin(task, incomplete.length + i)}
                     />
                   ))}
                 </>

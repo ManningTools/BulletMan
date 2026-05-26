@@ -392,6 +392,30 @@ input  { font-family: inherit; }
   border-color: var(--border);
 }
 
+/* Pin mini-timer button */
+.pin-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1.5px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--subtext);
+  transition: color var(--t), background var(--t), border-color var(--t), transform var(--t), box-shadow var(--t);
+}
+.pin-btn:hover {
+  color: var(--text);
+  background: var(--surface2);
+  border-color: var(--border);
+  transform: translateY(-1px);
+  box-shadow: var(--sh-sm);
+}
+.pin-btn.pinned {
+  transform: translateY(-1px);
+  box-shadow: var(--sh-sm);
+}
+
 /* Edit (pencil) button */
 .edit-btn {
   width: 26px;

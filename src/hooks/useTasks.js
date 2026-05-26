@@ -12,12 +12,20 @@ function load() {
 }
 
 function save(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  // Strip ephemeral _liveElapsed before persisting
+  const clean = {};
+  for (const [key, tasks] of Object.entries(data)) {
+    clean[key] = tasks.map(({ _liveElapsed, ...t }) => t); // eslint-disable-line no-unused-vars
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(clean));
 }
 
 export function useTasks() {
   const [allTasks, setAllTasks] = useState(load);
-  const lastDayKey = useRef(todayKey());
+
+  // Ref so the 1-second tick can check running state without a stale closure
+  const allTasksRef = useRef(allTasks);
+  useEffect(() => { allTasksRef.current = allTasks; }, [allTasks]);
 
   const persist = useCallback((updated) => {
     setAllTasks(updated);
@@ -25,14 +33,13 @@ export function useTasks() {
   }, []);
 
   // ── Midnight detection ──────────────────────────────────────────────────────
-  // Poll every 10 s; when the date flips stop any timers that were running on
-  // the old day so they don't bleed into the new one.
   useEffect(() => {
+    let lastKey = todayKey();
     const ticker = setInterval(() => {
       const current = todayKey();
-      if (current === lastDayKey.current) return;
-      const oldKey = lastDayKey.current;
-      lastDayKey.current = current;
+      if (current === lastKey) return;
+      const oldKey = lastKey;
+      lastKey = current;
 
       setAllTasks(prev => {
         const oldDay = prev[oldKey] || [];
@@ -52,15 +59,28 @@ export function useTasks() {
     return () => clearInterval(ticker);
   }, []);
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
-  function todayList() {
-    return allTasks[todayKey()] || [];
-  }
+  // ── Live tick — forces re-render every second while a timer is running ──────
+  // Uses a separate counter state; does NOT write _liveElapsed into allTasks.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      const key = todayKey();
+      if ((allTasksRef.current[key] || []).some(t => t.timerRunning)) {
+        setTick(n => n + 1);
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
 
+  // ── Helpers ─────────────────────────────────────────────────────────────────
   function mapToday(fn) {
     const key = todayKey();
     const tasks = (allTasks[key] || []).map(fn);
     persist({ ...allTasks, [key]: tasks });
+  }
+
+  function updateTask(id, changes) {
+    mapToday(t => t.id === id ? { ...t, ...changes } : t);
   }
 
   // ── Task CRUD ────────────────────────────────────────────────────────────────
@@ -75,16 +95,12 @@ export function useTasks() {
       elapsedSeconds: 0,
       timerRunning: false,
       timerStartedAt: null,
-      hourlyRate: null,   // null = inherit global rate
+      hourlyRate: null,
       subtasks: [],
       clientId: clientId || null,
       projectId: projectId || null,
     };
     persist({ ...allTasks, [key]: [...(allTasks[key] || []), task] });
-  }
-
-  function updateTask(id, changes) {
-    mapToday(t => t.id === id ? { ...t, ...changes } : t);
   }
 
   function editTask(id, text) {
@@ -117,7 +133,6 @@ export function useTasks() {
     const now = Date.now();
     const tasks = (allTasks[key] || []).map(t => {
       if (t.id !== id) {
-        // Pause any other running timer
         if (t.timerRunning && t.timerStartedAt) {
           const extra = Math.floor((now - t.timerStartedAt) / 1000);
           return { ...t, timerRunning: false, timerStartedAt: null, elapsedSeconds: t.elapsedSeconds + extra };
@@ -179,6 +194,30 @@ export function useTasks() {
     });
   }
 
+  // ── Reorder (drag-and-drop) ──────────────────────────────────────────────────
+  function reorderTasks(draggedId, targetId) {
+    const key = todayKey();
+    const list = [...(allTasks[key] || [])];
+    const fromIdx = list.findIndex(t => t.id === draggedId);
+    const toIdx   = list.findIndex(t => t.id === targetId);
+    if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
+    const [removed] = list.splice(fromIdx, 1);
+    list.splice(toIdx, 0, removed);
+    persist({ ...allTasks, [key]: list });
+  }
+
+  // ── Prune old tasks ──────────────────────────────────────────────────────────
+  function pruneOldTasks(days) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffKey = cutoff.toISOString().slice(0, 10);
+    const pruned = {};
+    for (const [key, tasks] of Object.entries(allTasks)) {
+      if (key >= cutoffKey) pruned[key] = tasks;
+    }
+    persist(pruned);
+  }
+
   // ── Subtasks ─────────────────────────────────────────────────────────────────
   function addSubtask(taskId, text) {
     if (!text.trim()) return;
@@ -206,29 +245,12 @@ export function useTasks() {
     });
   }
 
-  // ── Live tick (updates _liveElapsed for running timers) ──────────────────────
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setAllTasks(prev => {
-        const key = todayKey();
-        const tasks = prev[key] || [];
-        if (!tasks.some(t => t.timerRunning)) return prev;
-        const now = Date.now();
-        const updated = tasks.map(t => {
-          if (!t.timerRunning || !t.timerStartedAt) return t;
-          return { ...t, _liveElapsed: t.elapsedSeconds + Math.floor((now - t.timerStartedAt) / 1000) };
-        });
-        return { ...prev, [key]: updated };
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Compute live display seconds for every today-task
+  // ── Compute live displaySeconds ───────────────────────────────────────────────
+  const now = Date.now();
   const liveTasks = (allTasks[todayKey()] || []).map(t => ({
     ...t,
     displaySeconds: t.timerRunning && t.timerStartedAt
-      ? t.elapsedSeconds + Math.floor((Date.now() - t.timerStartedAt) / 1000)
+      ? t.elapsedSeconds + Math.floor((now - t.timerStartedAt) / 1000)
       : t.elapsedSeconds,
   }));
 
@@ -236,7 +258,6 @@ export function useTasks() {
     tasks: liveTasks,
     allTasks,
     addTask,
-    updateTask,
     editTask,
     setTaskRate,
     setTaskTime,
@@ -245,6 +266,8 @@ export function useTasks() {
     deleteTask,
     toggleTimer,
     completeTask,
+    reorderTasks,
+    pruneOldTasks,
     addSubtask,
     toggleSubtask,
     deleteSubtask,

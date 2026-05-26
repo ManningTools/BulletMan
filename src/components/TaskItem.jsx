@@ -21,6 +21,13 @@ export default function TaskItem({
   isPinned   = false,
   taskColor  = '#7c3aed',
   onPin,
+  // Drag-to-reorder
+  isDraggable  = false,
+  isDragOver   = false,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }) {
   const { id, text, completed, timerRunning, displaySeconds, hourlyRate, subtasks = [],
           clientId, projectId } = task;
@@ -120,10 +127,22 @@ export default function TaskItem({
   const subDone  = subtasks.filter(s => s.completed).length;
 
   return (
-    <div className={`task-item${completed ? ' completed' : ''}${timerRunning ? ' running' : ''}`}>
+    <div
+      className={`task-item${completed ? ' completed' : ''}${timerRunning ? ' running' : ''}${isDragOver ? ' drag-over' : ''}`}
+      draggable={isDraggable}
+      onDragStart={onDragStart}
+      onDragOver={e => { e.preventDefault(); onDragOver?.(); }}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+    >
 
       {/* ── Main row ── */}
       <div className="task-main-row">
+        {/* Drag handle */}
+        {isDraggable && (
+          <div className="drag-handle" title="Drag to reorder">⠿</div>
+        )}
+
         {/* Completion check */}
         <button
           className="check-btn"

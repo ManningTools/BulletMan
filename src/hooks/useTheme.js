@@ -233,12 +233,6 @@ export function useTheme() {
     apply(themeId, next, customBg, customAccent);
   }
 
-  function setCustomColors(bg, accent) {
-    setCustomBg(bg);
-    setCustomAccent(accent);
-    if (themeId === 'custom') apply('custom', isDark, bg, accent);
-  }
-
   function activateCustom(bg, accent) {
     setThemeId('custom');
     setCustomBg(bg);
@@ -246,5 +240,5 @@ export function useTheme() {
     apply('custom', isDark, bg, accent);
   }
 
-  return { themeId, isDark, customBg, customAccent, setPreset, toggleDark, setCustomColors, activateCustom };
+  return { themeId, isDark, customBg, customAccent, setPreset, toggleDark, activateCustom };
 }

@@ -1,12 +1,19 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useTasks } from './hooks/useTasks';
+import { useTheme } from './hooks/useTheme';
 
 // Fixed palette used when a task has no client colour
 const MINI_COLORS = ['#7c3aed','#db2777','#d97706','#059669','#2563eb','#dc2626','#0891b2','#65a30d'];
-import { useTasks } from './hooks/useTasks';
-import { useTheme } from './hooks/useTheme';
 import { useSettings } from './hooks/useSettings';
 import { useClients } from './hooks/useClients';
 import { yesterdayKey, todayKey } from './utils/time';
+
+function formatTodayTime(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
 import { exportDay, exportWeek, exportMonth } from './utils/export';
 import TaskItem from './components/TaskItem';
 import DayVisualizer from './components/DayVisualizer';
@@ -24,14 +31,17 @@ export default function App() {
   const [showTheme,    setShowTheme]    = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [weekOffset,   setWeekOffset]   = useState(0);
-  const [pinnedIds, setPinnedIds] = useState([]); // taskIds with open mini windows
-  const inputRef = useRef(null);
+  const [pinnedIds,  setPinnedIds]  = useState([]);
+  const [dragOverId, setDragOverId] = useState(null);
+  const draggedId = useRef(null);
+  const inputRef  = useRef(null);
 
   const {
     tasks, allTasks,
     addTask, editTask, carryOverTask, deleteTask,
     toggleTimer, completeTask,
     setTaskRate, setTaskTime, setTaskClient,
+    reorderTasks, pruneOldTasks,
     addSubtask, toggleSubtask, deleteSubtask,
   } = useTasks();
 
@@ -132,6 +142,7 @@ export default function App() {
   const completed      = tasks.filter(t => t.completed);
   const todayTexts     = new Set(tasks.map(t => t.text));
   const yesterdayTasks = (allTasks[yesterdayKey()] || []).filter(t => !todayTexts.has(t.text));
+  const totalSeconds   = tasks.reduce((sum, t) => sum + t.displaySeconds, 0);
 
   const selectedClient = clients.find(c => c.id === addClientId) || null;
 
@@ -139,7 +150,12 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div className="header-inner">
-          <h1>BulletMan</h1>
+          <div className="header-left">
+            <h1>BulletMan</h1>
+            {totalSeconds >= 60 && (
+              <span className="header-total-time">{formatTodayTime(totalSeconds)}</span>
+            )}
+          </div>
           <div className="header-right">
             <nav className="tab-nav">
               <button className={`tab-btn ${tab === 'today' ? 'active' : ''}`} onClick={() => setTab('today')}>
@@ -188,6 +204,7 @@ export default function App() {
               <SettingsPanel
                 globalHourlyRate={globalHourlyRate}
                 onSetRate={setGlobalHourlyRate}
+                onPruneOldTasks={pruneOldTasks}
                 onClose={() => setShowSettings(false)}
               />
             )}
@@ -271,6 +288,17 @@ export default function App() {
                   isPinned={pinnedIds.includes(task.id)}
                   taskColor={getTaskColor(task, i)}
                   onPin={() => handlePin(task)}
+                  isDraggable
+                  isDragOver={dragOverId === task.id}
+                  onDragStart={() => { draggedId.current = task.id; }}
+                  onDragOver={() => setDragOverId(task.id)}
+                  onDrop={() => {
+                    if (draggedId.current && draggedId.current !== task.id)
+                      reorderTasks(draggedId.current, task.id);
+                    draggedId.current = null;
+                    setDragOverId(null);
+                  }}
+                  onDragEnd={() => { draggedId.current = null; setDragOverId(null); }}
                 />
               ))}
 

@@ -3,7 +3,7 @@ import { formatTime, weekDays, weekSunday } from './time';
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function toDateKey(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return date.toISOString().slice(0, 10);
 }
 
 function escapeField(val) {

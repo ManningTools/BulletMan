@@ -104,7 +104,5 @@ export function useClients() {
     addProject,
     editProject,
     deleteProject,
-    getClient,
-    getProject,
   };
 }

@@ -80,12 +80,12 @@ Eight built-in colour themes plus a fully custom picker:
 
 | Platform | File |
 |---|---|
-| Linux (AppImage) | `BulletMan-1.1.1.AppImage` |
-| Linux (deb) | `bulletman_1.1.1_amd64.deb` |
-| Windows (installer) | `BulletMan Setup 1.1.1.exe` |
-| Windows (portable) | `BulletMan 1.1.1.exe` |
+| Linux (AppImage) | `BulletMan-1.1.2.AppImage` |
+| Linux (deb) | `bulletman_1.1.2_amd64.deb` |
+| Windows (installer) | `BulletMan Setup 1.1.2.exe` |
+| Windows (portable) | `BulletMan 1.1.2.exe` |
 
-> **Linux AppImage:** `chmod +x BulletMan-1.1.1.AppImage && ./BulletMan-1.1.1.AppImage`
+> **Linux AppImage:** `chmod +x BulletMan-1.1.2.AppImage && ./BulletMan-1.1.2.AppImage`
 
 ---
 

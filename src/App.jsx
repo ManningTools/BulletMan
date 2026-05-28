@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useTasks }    from './hooks/useTasks';
 import { useTheme }    from './hooks/useTheme';
 import { useSettings } from './hooks/useSettings';
 import { useClients }  from './hooks/useClients';
 import { yesterdayKey, todayKey } from './utils/time';
 import { exportDay, exportWeek, exportMonth } from './utils/export';
+import { useStorageError } from './utils/storage';
 import TaskItem        from './components/TaskItem';
 import DayVisualizer   from './components/DayVisualizer';
 import WeekView        from './components/WeekView';
@@ -55,6 +56,7 @@ export default function App() {
     addClient, editClient, deleteClient,
     addProject, editProject, deleteProject,
   } = useClients();
+  const [storageError, clearStorageError] = useStorageError();
 
   // ── Mini timer: colour for each task ─────────────────────────────────────────
   const getTaskColor = useCallback((task, index) => {
@@ -119,10 +121,13 @@ export default function App() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // ── Live allTasks — today's entries carry live displaySeconds from running timer ─
+  const liveAllTasks = useMemo(() => ({ ...allTasks, [todayKey()]: tasks }), [allTasks, tasks]);
+
   // ── Export handlers ───────────────────────────────────────────────────────────
-  function handleExportDay()   { exportDay(tasks, globalHourlyRate, todayKey(), clients); }
-  function handleExportWeek()  { exportWeek(allTasks, globalHourlyRate, weekOffset, clients); }
-  function handleExportMonth() { exportMonth(allTasks, globalHourlyRate, weekOffset, clients); }
+  const handleExportDay   = useCallback(() => exportDay(tasks, globalHourlyRate, todayKey(), clients), [tasks, globalHourlyRate, clients]);
+  const handleExportWeek  = useCallback(() => exportWeek(liveAllTasks, globalHourlyRate, weekOffset, clients), [liveAllTasks, globalHourlyRate, weekOffset, clients]);
+  const handleExportMonth = useCallback(() => exportMonth(liveAllTasks, globalHourlyRate, weekOffset, clients), [liveAllTasks, globalHourlyRate, weekOffset, clients]);
 
   // ── UI helpers ────────────────────────────────────────────────────────────────
   function handleAdd(e) {
@@ -154,12 +159,21 @@ export default function App() {
   function toggleData()     { setShowData(v => !v);     setShowTheme(false);    setShowSettings(false); }
 
   // ── Derived values ────────────────────────────────────────────────────────────
-  const incomplete     = tasks.filter(t => !t.completed);
-  const completed      = tasks.filter(t => t.completed);
-  const todayTexts     = new Set(tasks.map(t => t.text));
-  const yesterdayTasks = (allTasks[yesterdayKey()] || []).filter(t => !todayTexts.has(t.text));
-  const totalSeconds   = tasks.reduce((sum, t) => sum + t.displaySeconds, 0);
-  const selectedClient = clients.find(c => c.id === addClientId) || null;
+  const incomplete = useMemo(() => tasks.filter(t => !t.completed), [tasks]);
+  const completed  = useMemo(() => tasks.filter(t =>  t.completed), [tasks]);
+  const totalSeconds = useMemo(() => tasks.reduce((sum, t) => sum + t.displaySeconds, 0), [tasks]);
+
+  // These depend on allTasks (stable between ticks) rather than the live tasks array
+  const rawTodayTasks  = useMemo(() => allTasks[todayKey()] || [], [allTasks]);
+  const todayTexts     = useMemo(() => new Set(rawTodayTasks.map(t => t.text)), [rawTodayTasks]);
+  const yesterdayTasks = useMemo(
+    () => (allTasks[yesterdayKey()] || []).filter(t => !todayTexts.has(t.text)),
+    [allTasks, todayTexts]
+  );
+  const selectedClient = useMemo(
+    () => clients.find(c => c.id === addClientId) || null,
+    [clients, addClientId]
+  );
 
   return (
     <div className="app">
@@ -251,6 +265,13 @@ export default function App() {
           </div>
         )}
       </header>
+
+      {storageError && (
+        <div className="storage-error-banner" role="alert">
+          <span>⚠ {storageError}</span>
+          <button className="storage-error-dismiss" onClick={clearStorageError} title="Dismiss">✕</button>
+        </div>
+      )}
 
       <main className="app-main">
         {tab === 'today' && (
@@ -352,7 +373,7 @@ export default function App() {
 
         {tab === 'week' && (
           <WeekView
-            allTasks={allTasks}
+            allTasks={liveAllTasks}
             globalHourlyRate={globalHourlyRate}
             offset={weekOffset}
             onOffsetChange={setWeekOffset}
@@ -365,7 +386,7 @@ export default function App() {
           <ClientsPage
             clients={clients}
             CLIENT_COLORS={CLIENT_COLORS}
-            allTasks={allTasks}
+            allTasks={liveAllTasks}
             globalHourlyRate={globalHourlyRate}
             onAddClient={addClient}
             onEditClient={editClient}

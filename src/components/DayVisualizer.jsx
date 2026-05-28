@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { formatTime, formatMoney, secondsToHours } from '../utils/time';
 
@@ -30,7 +31,7 @@ function DownloadIcon() {
   );
 }
 
-export default function DayVisualizer({ tasks, globalHourlyRate, onExportDay }) {
+function DayVisualizer({ tasks, globalHourlyRate, onExportDay }) {
   const withTime = tasks.filter(t => t.displaySeconds > 0);
   const totalSeconds = withTime.reduce((sum, t) => sum + t.displaySeconds, 0);
 
@@ -167,3 +168,5 @@ export default function DayVisualizer({ tasks, globalHourlyRate, onExportDay }) 
     </div>
   );
 }
+
+export default memo(DayVisualizer);

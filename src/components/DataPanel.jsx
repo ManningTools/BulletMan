@@ -18,7 +18,9 @@ export default function DataPanel({ onPruneOldTasks }) {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = `bulletman-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    const nd = new Date();
+    const stamp = `${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}-${String(nd.getDate()).padStart(2,'0')}`;
+    a.download = `bulletman-backup-${stamp}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -34,10 +36,19 @@ export default function DataPanel({ onPruneOldTasks }) {
       try {
         const data = JSON.parse(ev.target.result);
         let restored = 0;
+        let failed   = false;
         STORAGE_KEYS.forEach(k => {
-          if (data[k] != null) { localStorage.setItem(k, JSON.stringify(data[k])); restored++; }
+          if (data[k] != null) {
+            try {
+              localStorage.setItem(k, JSON.stringify(data[k]));
+              restored++;
+            } catch {
+              failed = true;
+            }
+          }
         });
         if (restored === 0) { setImportError('No recognised data found in file.'); return; }
+        if (failed) { setImportError('Storage is full — could not import all data. Prune old tasks first.'); return; }
         window.location.reload();
       } catch {
         setImportError('Invalid backup file.');

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import ClientProjectVisualizer from './ClientProjectVisualizer';
 
 const RANGES = [
@@ -187,7 +187,7 @@ function ClientCard({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function ClientsPage({
+function ClientsPage({
   clients,
   CLIENT_COLORS,
   allTasks,
@@ -294,3 +294,5 @@ export default function ClientsPage({
     </div>
   );
 }
+
+export default memo(ClientsPage);

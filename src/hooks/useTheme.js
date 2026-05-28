@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { storageSet } from '../utils/storage';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function hexToRgb(hex) {
@@ -214,7 +215,7 @@ export function useTheme() {
       ? buildCustomTheme(bg, accent)
       : dark ? PRESETS[id].darkVars : PRESETS[id].lightVars;
     applyVars(vars);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ id, isDark: dark, customBg: bg, customAccent: accent }));
+    storageSet(STORAGE_KEY, JSON.stringify({ id, isDark: dark, customBg: bg, customAccent: accent }));
   }
 
   // Apply on mount

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer,
@@ -23,7 +23,7 @@ function DownloadIcon() {
   );
 }
 
-export default function WeekView({
+function WeekView({
   allTasks,
   globalHourlyRate,
   offset,
@@ -48,18 +48,19 @@ export default function WeekView({
 
   // All task names with time this week
   const allNames = [...new Set(
-    days.flatMap(day => (allTasks[day] || []).filter(t => t.elapsedSeconds > 0).map(t => t.text))
+    days.flatMap(day => (allTasks[day] || []).filter(t => (t.displaySeconds ?? t.elapsedSeconds) > 0).map(t => t.text))
   )];
 
   // Per-task totals: { name → { seconds, earnings } }
   const weeklyTotals = {};
   days.forEach(day => {
     (allTasks[day] || []).forEach(t => {
-      if (t.elapsedSeconds <= 0) return;
+      const secs = t.displaySeconds ?? t.elapsedSeconds;
+      if (secs <= 0) return;
       if (!weeklyTotals[t.text]) weeklyTotals[t.text] = { seconds: 0, earnings: 0 };
       const r = (t.hourlyRate !== null && t.hourlyRate !== undefined) ? t.hourlyRate : globalHourlyRate;
-      weeklyTotals[t.text].seconds  += t.elapsedSeconds;
-      weeklyTotals[t.text].earnings += (t.elapsedSeconds / 3600) * (r || 0);
+      weeklyTotals[t.text].seconds  += secs;
+      weeklyTotals[t.text].earnings += (secs / 3600) * (r || 0);
     });
   });
 
@@ -70,9 +71,10 @@ export default function WeekView({
   // Chart data: one group per day
   const chartData = days.map(day => {
     const entry = { day: shortDay(day), _total: 0 };
-    (allTasks[day] || []).filter(t => t.completed || t.elapsedSeconds > 0).forEach(t => {
-      entry[t.text] = (entry[t.text] || 0) + t.elapsedSeconds;
-      entry._total  += t.elapsedSeconds;
+    (allTasks[day] || []).filter(t => t.completed || (t.displaySeconds ?? t.elapsedSeconds) > 0).forEach(t => {
+      const secs = t.displaySeconds ?? t.elapsedSeconds;
+      entry[t.text] = (entry[t.text] || 0) + secs;
+      entry._total  += secs;
     });
     return entry;
   });
@@ -255,3 +257,5 @@ export default function WeekView({
     </div>
   );
 }
+
+export default memo(WeekView);

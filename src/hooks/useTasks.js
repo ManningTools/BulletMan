@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { todayKey } from '../utils/time';
+import { storageSet } from '../utils/storage';
 
 const STORAGE_KEY = 'bulletman_tasks';
 
@@ -17,19 +18,24 @@ function save(data) {
   for (const [key, tasks] of Object.entries(data)) {
     clean[key] = tasks.map(({ _liveElapsed, ...t }) => t); // eslint-disable-line no-unused-vars
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(clean));
+  storageSet(STORAGE_KEY, JSON.stringify(clean));
 }
 
 export function useTasks() {
   const [allTasks, setAllTasks] = useState(load);
 
-  // Ref so the 1-second tick can check running state without a stale closure
+  // Keep ref in sync so the async 1-second interval always reads latest state
   const allTasksRef = useRef(allTasks);
   useEffect(() => { allTasksRef.current = allTasks; }, [allTasks]);
 
-  const persist = useCallback((updated) => {
-    setAllTasks(updated);
-    save(updated);
+  // Functional updater: accepts (prev => next) or a plain next value.
+  // Using functional setState means no mutation ever closes over stale allTasks.
+  const persist = useCallback((updater) => {
+    setAllTasks(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      save(next);
+      return next;
+    });
   }, []);
 
   // ── Midnight detection ──────────────────────────────────────────────────────
@@ -59,9 +65,8 @@ export function useTasks() {
     return () => clearInterval(ticker);
   }, []);
 
-  // ── Live tick — forces re-render every second while a timer is running ──────
-  // Uses a separate counter state; does NOT write _liveElapsed into allTasks.
-  const [, setTick] = useState(0);
+  // ── Live tick — drives re-render every second while a timer is running ──────
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => {
       const key = todayKey();
@@ -73,18 +78,17 @@ export function useTasks() {
   }, []);
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
-  function mapToday(fn) {
+  const mapToday = useCallback((fn) => {
     const key = todayKey();
-    const tasks = (allTasks[key] || []).map(fn);
-    persist({ ...allTasks, [key]: tasks });
-  }
+    persist(prev => ({ ...prev, [key]: (prev[key] || []).map(fn) }));
+  }, [persist]);
 
-  function updateTask(id, changes) {
+  const updateTask = useCallback((id, changes) => {
     mapToday(t => t.id === id ? { ...t, ...changes } : t);
-  }
+  }, [mapToday]);
 
   // ── Task CRUD ────────────────────────────────────────────────────────────────
-  function addTask(text, clientId = null, projectId = null) {
+  const addTask = useCallback((text, clientId = null, projectId = null) => {
     if (!text.trim()) return;
     const key = todayKey();
     const task = {
@@ -100,75 +104,79 @@ export function useTasks() {
       clientId: clientId || null,
       projectId: projectId || null,
     };
-    persist({ ...allTasks, [key]: [...(allTasks[key] || []), task] });
-  }
+    persist(prev => ({ ...prev, [key]: [...(prev[key] || []), task] }));
+  }, [persist]);
 
-  function editTask(id, text) {
+  const editTask = useCallback((id, text) => {
     if (!text.trim()) return;
     updateTask(id, { text: text.trim() });
-  }
+  }, [updateTask]);
 
-  function deleteTask(id) {
+  const deleteTask = useCallback((id) => {
     const key = todayKey();
-    persist({ ...allTasks, [key]: (allTasks[key] || []).filter(t => t.id !== id) });
-  }
+    persist(prev => ({ ...prev, [key]: (prev[key] || []).filter(t => t.id !== id) }));
+  }, [persist]);
 
-  function setTaskRate(id, raw) {
+  const setTaskRate = useCallback((id, raw) => {
     const n = parseFloat(raw);
     const value = (raw === '' || isNaN(n)) ? null : Math.max(0, +n.toFixed(2));
     updateTask(id, { hourlyRate: value });
-  }
+  }, [updateTask]);
 
-  function setTaskTime(id, seconds) {
+  const setTaskTime = useCallback((id, seconds) => {
     mapToday(t => t.id !== id ? t : {
       ...t,
       elapsedSeconds: Math.max(0, Math.round(seconds)),
       timerRunning: false,
       timerStartedAt: null,
     });
-  }
+  }, [mapToday]);
 
-  function toggleTimer(id) {
+  const toggleTimer = useCallback((id) => {
     const key = todayKey();
     const now = Date.now();
-    const tasks = (allTasks[key] || []).map(t => {
-      if (t.id !== id) {
-        if (t.timerRunning && t.timerStartedAt) {
+    persist(prev => {
+      const tasks = (prev[key] || []).map(t => {
+        if (t.id !== id) {
+          if (t.timerRunning && t.timerStartedAt) {
+            const extra = Math.floor((now - t.timerStartedAt) / 1000);
+            return { ...t, timerRunning: false, timerStartedAt: null, elapsedSeconds: t.elapsedSeconds + extra };
+          }
+          return t;
+        }
+        if (t.timerRunning) {
           const extra = Math.floor((now - t.timerStartedAt) / 1000);
           return { ...t, timerRunning: false, timerStartedAt: null, elapsedSeconds: t.elapsedSeconds + extra };
         }
-        return t;
-      }
-      if (t.timerRunning) {
-        const extra = Math.floor((now - t.timerStartedAt) / 1000);
-        return { ...t, timerRunning: false, timerStartedAt: null, elapsedSeconds: t.elapsedSeconds + extra };
-      }
-      return { ...t, timerRunning: true, timerStartedAt: now };
+        return { ...t, timerRunning: true, timerStartedAt: now };
+      });
+      return { ...prev, [key]: tasks };
     });
-    persist({ ...allTasks, [key]: tasks });
-  }
+  }, [persist]);
 
-  function completeTask(id, completed) {
+  const completeTask = useCallback((id, completed) => {
     const key = todayKey();
     const now = Date.now();
-    const tasks = (allTasks[key] || []).map(t => {
-      if (t.id !== id) return t;
-      let extra = 0;
-      if (completed && t.timerRunning && t.timerStartedAt) {
-        extra = Math.floor((now - t.timerStartedAt) / 1000);
-      }
-      return {
-        ...t,
-        completed,
-        timerRunning: completed ? false : t.timerRunning,
-        timerStartedAt: completed ? null : t.timerStartedAt,
-        elapsedSeconds: t.elapsedSeconds + extra,
-      };
+    persist(prev => {
+      const tasks = (prev[key] || []).map(t => {
+        if (t.id !== id) return t;
+        let extra = 0;
+        if (completed && t.timerRunning && t.timerStartedAt) {
+          extra = Math.floor((now - t.timerStartedAt) / 1000);
+        }
+        return {
+          ...t,
+          completed,
+          timerRunning: completed ? false : t.timerRunning,
+          timerStartedAt: completed ? null : t.timerStartedAt,
+          elapsedSeconds: t.elapsedSeconds + extra,
+        };
+      });
+      return { ...prev, [key]: tasks };
     });
-    persist({ ...allTasks, [key]: tasks });
-  }
+  }, [persist]);
 
-  function carryOverTask(task) {
+  const carryOverTask = useCallback((task) => {
     const key = todayKey();
     const newTask = {
       id: crypto.randomUUID(),
@@ -183,52 +191,57 @@ export function useTasks() {
       clientId: task.clientId ?? null,
       projectId: task.projectId ?? null,
     };
-    persist({ ...allTasks, [key]: [...(allTasks[key] || []), newTask] });
-  }
+    persist(prev => ({ ...prev, [key]: [...(prev[key] || []), newTask] }));
+  }, [persist]);
 
-  function setTaskClient(id, clientId, projectId) {
+  const setTaskClient = useCallback((id, clientId, projectId) => {
     mapToday(t => t.id !== id ? t : {
       ...t,
       clientId: clientId || null,
       projectId: projectId || null,
     });
-  }
+  }, [mapToday]);
 
   // ── Reorder (drag-and-drop) ──────────────────────────────────────────────────
-  function reorderTasks(draggedId, targetId) {
+  const reorderTasks = useCallback((draggedId, targetId) => {
     const key = todayKey();
-    const list = [...(allTasks[key] || [])];
-    const fromIdx = list.findIndex(t => t.id === draggedId);
-    const toIdx   = list.findIndex(t => t.id === targetId);
-    if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
-    const [removed] = list.splice(fromIdx, 1);
-    list.splice(toIdx, 0, removed);
-    persist({ ...allTasks, [key]: list });
-  }
+    persist(prev => {
+      const list = [...(prev[key] || [])];
+      const fromIdx = list.findIndex(t => t.id === draggedId);
+      const toIdx   = list.findIndex(t => t.id === targetId);
+      if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return prev;
+      const [removed] = list.splice(fromIdx, 1);
+      list.splice(toIdx, 0, removed);
+      return { ...prev, [key]: list };
+    });
+  }, [persist]);
 
   // ── Prune old tasks ──────────────────────────────────────────────────────────
-  function pruneOldTasks(days) {
+  const pruneOldTasks = useCallback((days) => {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
-    const cutoffKey = cutoff.toISOString().slice(0, 10);
-    const pruned = {};
-    for (const [key, tasks] of Object.entries(allTasks)) {
-      if (key >= cutoffKey) pruned[key] = tasks;
-    }
-    persist(pruned);
-  }
+    const y = cutoff.getFullYear(), mo = cutoff.getMonth() + 1, d = cutoff.getDate();
+    const cutoffKey = `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    persist(prev => {
+      const pruned = {};
+      for (const [key, tasks] of Object.entries(prev)) {
+        if (key >= cutoffKey) pruned[key] = tasks;
+      }
+      return pruned;
+    });
+  }, [persist]);
 
   // ── Subtasks ─────────────────────────────────────────────────────────────────
-  function addSubtask(taskId, text) {
+  const addSubtask = useCallback((taskId, text) => {
     if (!text.trim()) return;
     mapToday(t => {
       if (t.id !== taskId) return t;
       const sub = { id: crypto.randomUUID(), text: text.trim(), completed: false };
       return { ...t, subtasks: [...(t.subtasks || []), sub] };
     });
-  }
+  }, [mapToday]);
 
-  function toggleSubtask(taskId, subId) {
+  const toggleSubtask = useCallback((taskId, subId) => {
     mapToday(t => {
       if (t.id !== taskId) return t;
       return {
@@ -236,23 +249,28 @@ export function useTasks() {
         subtasks: (t.subtasks || []).map(s => s.id === subId ? { ...s, completed: !s.completed } : s),
       };
     });
-  }
+  }, [mapToday]);
 
-  function deleteSubtask(taskId, subId) {
+  const deleteSubtask = useCallback((taskId, subId) => {
     mapToday(t => {
       if (t.id !== taskId) return t;
       return { ...t, subtasks: (t.subtasks || []).filter(s => s.id !== subId) };
     });
-  }
+  }, [mapToday]);
 
   // ── Compute live displaySeconds ───────────────────────────────────────────────
-  const now = Date.now();
-  const liveTasks = (allTasks[todayKey()] || []).map(t => ({
-    ...t,
-    displaySeconds: t.timerRunning && t.timerStartedAt
-      ? t.elapsedSeconds + Math.floor((now - t.timerStartedAt) / 1000)
-      : t.elapsedSeconds,
-  }));
+  // tick is listed as a dependency so this recomputes each second while a timer runs.
+  // Date.now() is inside the memo callback to satisfy the purity lint rule.
+  const liveTasks = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity
+    const now = Date.now();
+    return (allTasks[todayKey()] || []).map(t => ({
+      ...t,
+      displaySeconds: t.timerRunning && t.timerStartedAt
+        ? t.elapsedSeconds + Math.floor((now - t.timerStartedAt) / 1000)
+        : t.elapsedSeconds,
+    }));
+  }, [allTasks, tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     tasks: liveTasks,

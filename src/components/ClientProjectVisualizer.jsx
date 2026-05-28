@@ -2,11 +2,6 @@ import { formatTime, formatMoney } from '../utils/time';
 
 // ── Time range helpers ────────────────────────────────────────────────────────
 
-function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 function weekStart() {
   const d = new Date();
   d.setDate(d.getDate() - d.getDay());
@@ -28,7 +23,6 @@ function dateFromKey(key) {
 // ── Aggregate allTasks by client/project for a given date range ───────────────
 
 function aggregate(allTasks, clients, globalHourlyRate, range) {
-  const now = new Date();
   const ws  = weekStart();
   const ms  = monthStart();
 
@@ -42,7 +36,7 @@ function aggregate(allTasks, clients, globalHourlyRate, range) {
 
     (tasks || []).forEach(t => {
       if (!t.clientId) return;
-      const secs = t.elapsedSeconds || 0;
+      const secs = (t.displaySeconds ?? t.elapsedSeconds) || 0;
       if (secs === 0) return;
 
       const rate = (t.hourlyRate !== null && t.hourlyRate !== undefined)

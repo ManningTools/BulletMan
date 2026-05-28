@@ -12,6 +12,7 @@
   },
   "homepage": "https://github.com/bulletman/bulletman",
   "scripts": {
+    "postinstall": "node scripts/copy-fonts.cjs",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
@@ -61,7 +62,13 @@
     },
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["x64", "arm64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "category": "public.app-category.productivity"
     },
@@ -72,6 +79,7 @@
     }
   },
   "dependencies": {
+    "@fontsource-variable/montserrat": "^5.2.8",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "recharts": "^3.8.1"

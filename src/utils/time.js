@@ -1,3 +1,7 @@
+function localKey(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export function formatTime(seconds) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -15,13 +19,13 @@ export function secondsToHours(seconds) {
 }
 
 export function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return localKey();
 }
 
 export function yesterdayKey() {
   const d = new Date();
   d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0, 10);
+  return localKey(d);
 }
 
 // Get the Sunday of the week at `offset` (0 = this week, -1 = last week, …)
@@ -39,7 +43,7 @@ export function weekDays(offset = 0) {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(sunday);
     d.setDate(sunday.getDate() + i);
-    return d.toISOString().slice(0, 10);
+    return localKey(d);
   });
 }
 

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { storageSet } from '../utils/storage';
 
 const SETTINGS_KEY = 'bulletman_settings';
 
@@ -20,7 +21,7 @@ export function useSettings() {
     const value = isNaN(n) || n < 0 ? 0 : +n.toFixed(2);
     setSettings(prev => {
       const updated = { ...prev, globalHourlyRate: value };
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+      storageSet(SETTINGS_KEY, JSON.stringify(updated));
       return updated;
     });
   }, []);

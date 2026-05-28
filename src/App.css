@@ -2260,3 +2260,29 @@ input  { font-family: inherit; }
   color: var(--green);
   flex-shrink: 0;
 }
+
+/* ── Storage error banner ── */
+.storage-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+  background: color-mix(in srgb, var(--yellow) 12%, var(--surface));
+  border-bottom: 2px solid var(--yellow);
+  color: var(--yellow);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.storage-error-dismiss {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--yellow);
+  opacity: 0.7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: opacity var(--t);
+}
+.storage-error-dismiss:hover { opacity: 1; }

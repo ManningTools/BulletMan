@@ -1,8 +1,32 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, memo } from 'react';
 import { formatTime, formatMoney, parseTimeInput } from '../utils/time';
 import SubtaskList from './SubtaskList';
 
-export default function TaskItem({
+function taskItemPropsEqual(prev, next) {
+  const pt = prev.task, nt = next.task;
+  if (pt.id              !== nt.id)              return false;
+  if (pt.displaySeconds  !== nt.displaySeconds)  return false;
+  if (pt.timerRunning    !== nt.timerRunning)    return false;
+  if (pt.completed       !== nt.completed)       return false;
+  if (pt.text            !== nt.text)            return false;
+  if (pt.hourlyRate      !== nt.hourlyRate)      return false;
+  if (pt.clientId        !== nt.clientId)        return false;
+  if (pt.projectId       !== nt.projectId)       return false;
+  if (prev.globalHourlyRate !== next.globalHourlyRate) return false;
+  if (prev.isPinned      !== next.isPinned)      return false;
+  if (prev.isDragOver    !== next.isDragOver)    return false;
+  if (prev.taskColor     !== next.taskColor)     return false;
+  if (prev.isElectron    !== next.isElectron)    return false;
+  const ps = pt.subtasks ?? [], ns = nt.subtasks ?? [];
+  if (ps.length !== ns.length) return false;
+  for (let i = 0; i < ps.length; i++) {
+    if (ps[i].id !== ns[i].id || ps[i].completed !== ns[i].completed || ps[i].text !== ns[i].text)
+      return false;
+  }
+  return true;
+}
+
+function TaskItem({
   task,
   globalHourlyRate,
   clients = [],
@@ -372,3 +396,5 @@ export default function TaskItem({
     </div>
   );
 }
+
+export default memo(TaskItem, taskItemPropsEqual);

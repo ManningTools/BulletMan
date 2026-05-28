@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { storageSet } from '../utils/storage';
 
 const STORAGE_KEY = 'bulletman_clients';
 
@@ -22,7 +23,7 @@ function load() {
 }
 
 function save(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  storageSet(STORAGE_KEY, JSON.stringify(data));
 }
 
 export { CLIENT_COLORS };
@@ -30,70 +31,65 @@ export { CLIENT_COLORS };
 export function useClients() {
   const [clients, setClients] = useState(load);
 
-  const persist = useCallback((updated) => {
-    setClients(updated);
-    save(updated);
+  const persist = useCallback((updater) => {
+    setClients(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      save(next);
+      return next;
+    });
   }, []);
 
   // ── Client CRUD ──────────────────────────────────────────────────────────────
-  function addClient(name, color) {
+  const addClient = useCallback((name, color) => {
     if (!name.trim()) return;
-    const client = {
-      id: crypto.randomUUID(),
-      name: name.trim(),
-      color: color || CLIENT_COLORS[clients.length % CLIENT_COLORS.length],
-      projects: [],
-    };
-    persist([...clients, client]);
-  }
+    persist(prev => {
+      const client = {
+        id: crypto.randomUUID(),
+        name: name.trim(),
+        color: color || CLIENT_COLORS[prev.length % CLIENT_COLORS.length],
+        projects: [],
+      };
+      return [...prev, client];
+    });
+  }, [persist]);
 
-  function editClient(id, name, color) {
-    persist(clients.map(c =>
+  const editClient = useCallback((id, name, color) => {
+    persist(prev => prev.map(c =>
       c.id === id ? { ...c, name: name?.trim() ?? c.name, color: color ?? c.color } : c
     ));
-  }
+  }, [persist]);
 
-  function deleteClient(id) {
-    persist(clients.filter(c => c.id !== id));
-  }
+  const deleteClient = useCallback((id) => {
+    persist(prev => prev.filter(c => c.id !== id));
+  }, [persist]);
 
   // ── Project CRUD ─────────────────────────────────────────────────────────────
-  function addProject(clientId, name) {
+  const addProject = useCallback((clientId, name) => {
     if (!name.trim()) return;
-    persist(clients.map(c => {
+    persist(prev => prev.map(c => {
       if (c.id !== clientId) return c;
       const project = { id: crypto.randomUUID(), name: name.trim() };
       return { ...c, projects: [...c.projects, project] };
     }));
-  }
+  }, [persist]);
 
-  function editProject(clientId, projectId, name) {
+  const editProject = useCallback((clientId, projectId, name) => {
     if (!name.trim()) return;
-    persist(clients.map(c => {
+    persist(prev => prev.map(c => {
       if (c.id !== clientId) return c;
       return {
         ...c,
         projects: c.projects.map(p => p.id === projectId ? { ...p, name: name.trim() } : p),
       };
     }));
-  }
+  }, [persist]);
 
-  function deleteProject(clientId, projectId) {
-    persist(clients.map(c => {
+  const deleteProject = useCallback((clientId, projectId) => {
+    persist(prev => prev.map(c => {
       if (c.id !== clientId) return c;
       return { ...c, projects: c.projects.filter(p => p.id !== projectId) };
     }));
-  }
-
-  // ── Lookup helpers ───────────────────────────────────────────────────────────
-  function getClient(clientId) {
-    return clients.find(c => c.id === clientId) || null;
-  }
-
-  function getProject(clientId, projectId) {
-    const client = getClient(clientId);
-    return client ? (client.projects.find(p => p.id === projectId) || null) : null;
-  }
+  }, [persist]);
 
   return {
     clients,

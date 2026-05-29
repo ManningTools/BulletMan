@@ -1,5 +1,6 @@
-const { app, BrowserWindow, Tray, Menu, shell, nativeImage, ipcMain, screen, powerMonitor, net, globalShortcut } = require('electron');
+const { app, BrowserWindow, Tray, Menu, shell, nativeImage, ipcMain, screen, powerMonitor, net, globalShortcut, dialog } = require('electron');
 const path = require('path');
+const fs   = require('fs');
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -46,12 +47,14 @@ function createWindow() {
 
 // ── Mini timer windows ────────────────────────────────────────────────────────
 function getNextMiniPosition() {
-  const { width: sw } = screen.getPrimaryDisplay().workAreaSize;
+  // Position relative to the display the main window is on, not always the primary.
+  const display = win ? screen.getDisplayMatching(win.getBounds()) : screen.getPrimaryDisplay();
+  const { x: ax, y: ay, width: sw } = display.workArea;
   const winW = 300;
   const winH = 58;
   const gap  = 8;
   const count = miniWins.size;
-  return { x: sw - winW - 20, y: 20 + count * (winH + gap) };
+  return { x: ax + sw - winW - 20, y: ay + 20 + count * (winH + gap) };
 }
 
 function createMiniTimerWindow(taskId, x, y) {
@@ -141,6 +144,83 @@ ipcMain.handle('hotkey:register', (_, shortcut) => {
   return { ok };
 });
 
+// ── Storage: bootstrap config + file I/O ─────────────────────────────────────
+const DATA_KEYS = ['bulletman_tasks', 'bulletman_clients', 'bulletman_settings', 'bulletman_theme'];
+
+function bootstrapConfigPath() {
+  return path.join(app.getPath('userData'), 'bulletman-config.json');
+}
+
+function readBootstrapConfig() {
+  try { return JSON.parse(fs.readFileSync(bootstrapConfigPath(), 'utf8')); }
+  catch { return null; }
+}
+
+function atomicWriteFile(filePath, content) {
+  const tmp = filePath + '.tmp';
+  fs.writeFileSync(tmp, content, 'utf8');
+  fs.renameSync(tmp, filePath);
+}
+
+ipcMain.handle('storage:get-config', () => readBootstrapConfig());
+
+ipcMain.handle('storage:set-config', (_, config) => {
+  try {
+    const p = bootstrapConfigPath();
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, JSON.stringify(config, null, 2), 'utf8');
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('storage:write', (_, dataDir, key, value) => {
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+    atomicWriteFile(path.join(dataDir, `${key}.json`), value);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('storage:read-all', (_, dataDir) => {
+  // `available` distinguishes a genuinely empty folder from one that's
+  // missing / disconnected (e.g. an unmounted cloud or network drive).
+  let available = false;
+  try { available = fs.statSync(dataDir).isDirectory(); } catch { available = false; }
+
+  const data = {};
+  if (available) {
+    DATA_KEYS.forEach(key => {
+      try { data[key] = fs.readFileSync(path.join(dataDir, `${key}.json`), 'utf8'); }
+      catch { data[key] = null; }
+    });
+  }
+  return { available, data };
+});
+
+ipcMain.handle('storage:backup-corrupt', (_, dataDir, key) => {
+  try {
+    const src   = path.join(dataDir, `${key}.json`);
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    fs.renameSync(src, path.join(dataDir, `${key}.corrupt-${stamp}.json`));
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('storage:pick-folder', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory', 'createDirectory'],
+    title: 'Choose BulletMan Data Folder',
+    buttonLabel: 'Select Folder',
+  });
+  return result.canceled || !result.filePaths.length ? null : result.filePaths[0];
+});
+
 // ── Version check ────────────────────────────────────────────────────────────
 const RELEASES_API = 'https://api.github.com/repos/ManningTools/BulletMan/releases/latest';
 const RELEASES_PAGE = 'https://github.com/ManningTools/BulletMan/releases/latest';
@@ -226,20 +306,36 @@ function createTray() {
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.isQuitting = false;
 
-app.whenReady().then(() => {
-  createWindow();
-  createTray();
-  setupIdleDetection();
-
-  win.webContents.once('did-finish-load', () => {
-    setTimeout(checkForUpdates, 2000);
+// Single-instance lock: a second launch would otherwise run a second process
+// that writes to the same data folder, clobbering the first. Bail out and just
+// surface the window that's already running.
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.show();
+      win.focus();
+    }
   });
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    else if (win) { win.show(); win.focus(); }
-  });
-});
+  app.whenReady().then(() => {
+    createWindow();
+    createTray();
+    setupIdleDetection();
 
-app.on('window-all-closed', () => { /* stay in tray */ });
-app.on('before-quit', () => { app.isQuitting = true; globalShortcut.unregisterAll(); });
+    win.webContents.once('did-finish-load', () => {
+      setTimeout(checkForUpdates, 2000);
+    });
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+      else if (win) { win.show(); win.focus(); }
+    });
+  });
+
+  app.on('window-all-closed', () => { /* stay in tray */ });
+  app.on('before-quit', () => { app.isQuitting = true; globalShortcut.unregisterAll(); });
+}

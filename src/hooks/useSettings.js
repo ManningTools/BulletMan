@@ -1,11 +1,12 @@
 import { useState, useCallback } from 'react';
 import { storageSet } from '../utils/storage';
+import { adapterRead } from '../utils/storageAdapter';
 
 const SETTINGS_KEY = 'bulletman_settings';
 
 function load() {
   try {
-    return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
+    return JSON.parse(adapterRead(SETTINGS_KEY)) || {};
   } catch {
     return {};
   }

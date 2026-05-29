@@ -1,25 +1,16 @@
 import { useState, useEffect } from 'react';
-
-const errorListeners = new Set();
+import { adapterWrite, onStorageError } from './storageAdapter';
 
 export function storageSet(key, value) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // QuotaExceededError or similar — notify all mounted listeners
-    errorListeners.forEach(fn =>
-      fn('Storage is full. Export a backup and use Prune to free space.')
-    );
-  }
+  // adapterWrite handles both backends and reports failures via the error emitter
+  // (synchronous quota errors in local mode, async write failures in file mode).
+  adapterWrite(key, value);
 }
 
 export function useStorageError() {
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    errorListeners.add(setError);
-    return () => { errorListeners.delete(setError); };
-  }, []);
+  useEffect(() => onStorageError(setError), []);
 
   const clear = () => setError(null);
   return [error, clear];

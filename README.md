@@ -80,12 +80,12 @@ Eight built-in colour themes plus a fully custom picker:
 
 | Platform | File |
 |---|---|
-| Linux (AppImage) | `BulletMan-1.2.0.AppImage` |
-| Linux (deb) | `bulletman_1.2.0_amd64.deb` |
-| Windows (installer) | `BulletMan Setup 1.2.0.exe` |
-| Windows (portable) | `BulletMan 1.2.0 Portable.exe` |
+| Linux (AppImage) | `BulletMan-1.3.0.AppImage` |
+| Linux (deb) | `bulletman_1.3.0_amd64.deb` |
+| Windows (installer) | `BulletMan Setup 1.3.0.exe` |
+| Windows (portable) | `BulletMan 1.3.0 Portable.exe` |
 
-> **Linux AppImage:** `chmod +x BulletMan-1.2.0.AppImage && ./BulletMan-1.2.0.AppImage`
+> **Linux AppImage:** `chmod +x BulletMan-1.3.0.AppImage && ./BulletMan-1.3.0.AppImage`
 
 ---
 
@@ -119,7 +119,14 @@ Output goes to `release/`.
 
 ## Data & Privacy
 
-All data is stored in your browser's `localStorage` within the Electron context — nothing is sent to any server, ever. To back up or transfer your data, open the **gear icon (⚙)** in the app header → **Export Backup** to save a `.json` snapshot. Use **Import Backup** to restore it, or **Prune old data** to free space. The keys stored are `bulletman_tasks`, `bulletman_clients`, `bulletman_settings`, and `bulletman_theme`.
+Nothing is ever sent to a server. On first launch BulletMan asks where you want to keep your data:
+
+- **Local storage (default)** — data lives in Electron's sandboxed `localStorage` on this machine. Zero setup.
+- **Folder mode** — data is written as plain JSON files (`bulletman_tasks.json`, `bulletman_clients.json`, etc.) to a folder you choose. Point both your Windows and Linux installs at the same folder on a shared partition or inside a cloud-sync folder (Dropbox, OneDrive, Google Drive) and changes stay in sync automatically.
+
+You can switch modes or change the folder at any time in **Settings → Storage**.
+
+To back up or transfer your data regardless of mode, open the **gear icon (⚙)** → **Data Backup → Export** to save a `.json` snapshot. Use **Import** to restore it on any machine.
 
 ---
 

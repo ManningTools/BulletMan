@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { storageSet } from '../utils/storage';
+import { adapterRead } from '../utils/storageAdapter';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function hexToRgb(hex) {
@@ -187,7 +188,7 @@ export const PRESETS = {
 const STORAGE_KEY = 'bulletman_theme';
 
 function loadSaved() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; }
+  try { return JSON.parse(adapterRead(STORAGE_KEY)); } catch { return null; }
 }
 
 function applyVars(vars) {

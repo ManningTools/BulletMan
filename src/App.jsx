@@ -6,6 +6,7 @@ import { useClients }  from './hooks/useClients';
 import { yesterdayKey, todayKey } from './utils/time';
 import { exportDay, exportWeek, exportMonth } from './utils/export';
 import { useStorageError } from './utils/storage';
+import { isFirstLaunch, isFolderUnavailable, getDisplayName, getMode, getConfig, saveConfig, switchToFileMode, switchToLocalMode, folderHasData, checkForExternalChanges } from './utils/storageAdapter';
 import TaskItem        from './components/TaskItem';
 import DayVisualizer   from './components/DayVisualizer';
 import WeekView        from './components/WeekView';
@@ -13,6 +14,8 @@ import ClientsPage     from './components/ClientsPage';
 import ThemePanel      from './components/ThemePanel';
 import SettingsPanel   from './components/SettingsPanel';
 import DataPanel       from './components/DataPanel';
+import SetupWizard     from './components/SetupWizard';
+import FolderUnavailable from './components/FolderUnavailable';
 import './App.css';
 
 // Fixed palette used when a task has no client colour
@@ -26,6 +29,12 @@ function formatTodayTime(seconds) {
 }
 
 export default function App() {
+  const [showSetup,    setShowSetup]    = useState(isFirstLaunch);
+  const [folderGone]   = useState(isFolderUnavailable);
+  const [externalChange, setExternalChange] = useState(false);
+  const [displayName,  setDisplayName]  = useState(getDisplayName);
+  const [storageMode,  setStorageMode]  = useState(getMode);
+  const [storageFolder,setStorageFolder]= useState(() => getConfig().dataDir || '');
   const [tab,          setTab]          = useState('today');
   const [input,        setInput]        = useState('');
   const [addClientId,  setAddClientId]  = useState('');
@@ -143,6 +152,19 @@ export default function App() {
     return window.electronAPI.onUpdateAvailable((info) => setUpdateBanner(info));
   }, []);
 
+  // ── External-change detection (file mode) ─────────────────────────────────────
+  // The in-memory cache is read once at startup. If another machine syncs new data
+  // into the folder while we're open, detect it on focus and offer a reload rather
+  // than silently writing stale data back over it.
+  useEffect(() => {
+    if (storageMode !== 'file') return;
+    const onFocus = async () => {
+      if (await checkForExternalChanges()) setExternalChange(true);
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [storageMode]);
+
   // ── Global hotkey ─────────────────────────────────────────────────────────────
   // Re-register with main process whenever the saved shortcut changes
   useEffect(() => {
@@ -189,6 +211,48 @@ export default function App() {
       setHotkeyError('Shortcut already in use or invalid');
     }
   }, [setHotkeyShortcut]);
+
+  // ── Storage handlers ──────────────────────────────────────────────────────────
+  const handleSetDisplayName = useCallback(async (name) => {
+    await saveConfig({ displayName: name });
+    setDisplayName(name);
+  }, []);
+
+  const handleChangeFolder = useCallback(async () => {
+    const picked = await window.electronAPI?.pickFolder();
+    if (!picked) return;
+    // If the new folder already has data, use it as-is; if empty, carry current data over.
+    const hasData = await folderHasData(picked);
+    await switchToFileMode(picked, !hasData);
+    setStorageFolder(picked);
+    window.location.reload();
+  }, []);
+
+  const handleSwitchToFile = useCallback(async () => {
+    const picked = await window.electronAPI?.pickFolder();
+    if (!picked) return;
+    let migrate = true;
+    if (await folderHasData(picked)) {
+      // Folder already holds BulletMan data — don't blindly overwrite it.
+      const keepExisting = window.confirm(
+        'This folder already contains BulletMan data.\n\n' +
+        'OK = keep the data already in this folder\n' +
+        "Cancel = replace it with this computer's data"
+      );
+      migrate = !keepExisting;
+    }
+    await switchToFileMode(picked, migrate);
+    setStorageMode('file');
+    setStorageFolder(picked);
+    window.location.reload();
+  }, []);
+
+  const handleSwitchToLocal = useCallback(async () => {
+    await switchToLocalMode();
+    setStorageMode('local');
+    setStorageFolder('');
+    window.location.reload();
+  }, []);
 
   // ── Export handlers ───────────────────────────────────────────────────────────
   const handleExportDay   = useCallback(() => exportDay(tasks, globalHourlyRate, todayKey(), clients), [tasks, globalHourlyRate, clients]);
@@ -241,6 +305,21 @@ export default function App() {
     [clients, addClientId]
   );
 
+  if (showSetup) {
+    return (
+      <SetupWizard onComplete={({ displayName: dn, mode, dataDir }) => {
+        setDisplayName(dn);
+        setStorageMode(mode);
+        setStorageFolder(dataDir || '');
+        setShowSetup(false);
+      }} />
+    );
+  }
+
+  if (folderGone) {
+    return <FolderUnavailable />;
+  }
+
   return (
     <div className="app">
       <header className="app-header" ref={headerRef}>
@@ -248,6 +327,7 @@ export default function App() {
 
           <div className="header-left">
             <h1>BulletMan</h1>
+            {displayName && <span className="header-username">{displayName}</span>}
             {totalSeconds >= 60 && (
               <span className="header-total-time">{formatTodayTime(totalSeconds)}</span>
             )}
@@ -312,6 +392,13 @@ export default function App() {
                 onSetHotkey={handleSetHotkey}
                 hotkeyError={hotkeyError}
                 isElectron={!!window.electronAPI}
+                displayName={displayName}
+                onSetDisplayName={handleSetDisplayName}
+                storageMode={storageMode}
+                storageFolder={storageFolder}
+                onChangeFolder={handleChangeFolder}
+                onSwitchToFile={handleSwitchToFile}
+                onSwitchToLocal={handleSwitchToLocal}
                 onClose={() => setShowSettings(false)}
               />
             )}
@@ -348,6 +435,14 @@ export default function App() {
           <span>BulletMan {updateBanner.version} is available —</span>
           <a href={updateBanner.url} target="_blank" rel="noreferrer" className="update-banner-link">Download</a>
           <button className="update-banner-dismiss" onClick={() => setUpdateBanner(null)} title="Dismiss">✕</button>
+        </div>
+      )}
+
+      {externalChange && (
+        <div className="update-banner" role="status">
+          <span>This data folder was updated elsewhere —</span>
+          <button className="update-banner-link" onClick={() => window.location.reload()}>Reload</button>
+          <button className="update-banner-dismiss" onClick={() => setExternalChange(false)} title="Dismiss">✕</button>
         </div>
       )}
 

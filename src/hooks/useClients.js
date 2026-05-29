@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { storageSet } from '../utils/storage';
+import { adapterRead } from '../utils/storageAdapter';
 
 const STORAGE_KEY = 'bulletman_clients';
 
@@ -16,7 +17,7 @@ const CLIENT_COLORS = [
 
 function load() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    return JSON.parse(adapterRead(STORAGE_KEY)) || [];
   } catch {
     return [];
   }

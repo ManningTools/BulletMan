@@ -18,7 +18,6 @@ function toElectronKey(jsKey) {
   return null;
 }
 
-// Human-readable label for an accelerator segment
 function segLabel(seg) {
   if (seg === 'CommandOrControl') return 'Ctrl';
   return seg;
@@ -44,7 +43,7 @@ function HotkeyCapture({ value, onCommit, error }) {
     if (e.shiftKey) mods.push('Shift');
 
     if (['Control', 'Meta', 'Alt', 'Shift'].includes(e.key)) return;
-    if (mods.length === 0) return; // require at least one modifier
+    if (mods.length === 0) return;
     const keyName = toElectronKey(e.key);
     if (!keyName) return;
 
@@ -96,18 +95,90 @@ function HotkeyCapture({ value, onCommit, error }) {
   );
 }
 
+// ── Storage section ───────────────────────────────────────────────────────────
+function StorageSection({ storageMode, storageFolder, onChangeFolder, onSwitchToFile, onSwitchToLocal }) {
+  const [switchConfirm, setSwitchConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function handleSwitch() {
+    if (!switchConfirm) { setSwitchConfirm(true); return; }
+    setBusy(true);
+    setSwitchConfirm(false);
+    if (storageMode === 'file') {
+      await onSwitchToLocal();
+    } else {
+      await onSwitchToFile();
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div className="hotkey-section">
+      <label className="hotkey-label">Storage</label>
+
+      <div className="storage-info">
+        <span className="storage-mode-badge">
+          {storageMode === 'file' ? 'Folder mode' : 'Local storage'}
+        </span>
+        {storageMode === 'file' && storageFolder && (
+          <span className="storage-folder-path">{storageFolder}</span>
+        )}
+      </div>
+
+      <div className="storage-btn-row">
+        {storageMode === 'file' && (
+          <button className="storage-btn" onClick={onChangeFolder} disabled={busy}>
+            Change folder…
+          </button>
+        )}
+        <button
+          className={`storage-btn${switchConfirm ? ' confirm' : ''}`}
+          onClick={handleSwitch}
+          disabled={busy}
+        >
+          {busy
+            ? 'Switching…'
+            : switchConfirm
+              ? `⚠ Confirm switch`
+              : storageMode === 'file' ? 'Switch to local' : 'Switch to folder…'}
+        </button>
+        {switchConfirm && (
+          <button className="storage-btn" onClick={() => setSwitchConfirm(false)}>Cancel</button>
+        )}
+      </div>
+
+      {storageMode === 'file' && (
+        <p className="settings-hint">
+          Point both OS installs at the same folder (or a cloud sync folder) to keep data in sync.
+        </p>
+      )}
+      {storageMode === 'local' && (
+        <p className="settings-hint">
+          Switch to folder mode to sync across machines via Dropbox, OneDrive, or a shared drive.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Settings panel ────────────────────────────────────────────────────────────
 export default function SettingsPanel({
   globalHourlyRate, onSetRate,
   hotkeyShortcut, onSetHotkey, hotkeyError,
   isElectron,
+  displayName, onSetDisplayName,
+  storageMode, storageFolder, onChangeFolder, onSwitchToFile, onSwitchToLocal,
   onClose,
 }) {
-  const [input, setInput] = useState(globalHourlyRate > 0 ? String(globalHourlyRate) : '');
+  const [rateInput, setRateInput]   = useState(globalHourlyRate > 0 ? String(globalHourlyRate) : '');
+  const [nameInput, setNameInput]   = useState(displayName || '');
 
   function handleApply(e) {
     e.preventDefault();
-    onSetRate(input === '' ? '0' : input);
+    onSetRate(rateInput === '' ? '0' : rateInput);
+    if (nameInput.trim() && nameInput.trim() !== displayName) {
+      onSetDisplayName(nameInput.trim());
+    }
     onClose();
   }
 
@@ -116,6 +187,23 @@ export default function SettingsPanel({
       <div className="theme-panel-header">Settings</div>
 
       <form onSubmit={handleApply}>
+        {isElectron && (
+          <>
+            <label className="hotkey-label">Your name</label>
+            <div className="settings-rate-row" style={{ marginBottom: 12 }}>
+              <input
+                className="settings-rate-input"
+                style={{ flex: 1, textAlign: 'left', paddingLeft: 10 }}
+                type="text"
+                maxLength={40}
+                placeholder="e.g. Manning"
+                value={nameInput}
+                onChange={e => setNameInput(e.target.value)}
+              />
+            </div>
+          </>
+        )}
+
         <label className="hotkey-label">Hourly rate</label>
         <div className="settings-rate-row">
           <span className="settings-currency">$</span>
@@ -125,9 +213,9 @@ export default function SettingsPanel({
             min="0"
             step="0.01"
             placeholder="0.00"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            autoFocus
+            value={rateInput}
+            onChange={e => setRateInput(e.target.value)}
+            autoFocus={!isElectron}
           />
           <span className="settings-per-hr">/hr</span>
         </div>
@@ -142,6 +230,16 @@ export default function SettingsPanel({
           value={hotkeyShortcut}
           onCommit={onSetHotkey}
           error={hotkeyError}
+        />
+      )}
+
+      {isElectron && (
+        <StorageSection
+          storageMode={storageMode}
+          storageFolder={storageFolder}
+          onChangeFolder={onChangeFolder}
+          onSwitchToFile={onSwitchToFile}
+          onSwitchToLocal={onSwitchToLocal}
         />
       )}
     </div>

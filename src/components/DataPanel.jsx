@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { adapterRead, adapterWrite } from '../utils/storageAdapter';
 
 const STORAGE_KEYS = ['bulletman_tasks', 'bulletman_clients', 'bulletman_settings', 'bulletman_theme'];
 
@@ -12,7 +13,7 @@ export default function DataPanel({ onPruneOldTasks }) {
   function handleExport() {
     const data = {};
     STORAGE_KEYS.forEach(k => {
-      try { data[k] = JSON.parse(localStorage.getItem(k)); } catch { data[k] = null; }
+      try { data[k] = JSON.parse(adapterRead(k)); } catch { data[k] = null; }
     });
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
@@ -40,7 +41,7 @@ export default function DataPanel({ onPruneOldTasks }) {
         STORAGE_KEYS.forEach(k => {
           if (data[k] != null) {
             try {
-              localStorage.setItem(k, JSON.stringify(data[k]));
+              adapterWrite(k, JSON.stringify(data[k]));
               restored++;
             } catch {
               failed = true;

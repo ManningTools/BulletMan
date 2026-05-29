@@ -2,7 +2,7 @@
   "name": "bulletman",
   "productName": "BulletMan",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.3.0",
   "type": "module",
   "main": "electron/main.cjs",
   "description": "Bullet task list with timers and time visualization",
@@ -10,7 +10,7 @@
     "name": "Manning Moore",
     "email": "manningmooreart@gmail.com"
   },
-  "homepage": "https://github.com/bulletman/bulletman",
+  "homepage": "https://github.com/ManningTools/BulletMan",
   "scripts": {
     "postinstall": "node scripts/copy-fonts.cjs",
     "dev": "vite",

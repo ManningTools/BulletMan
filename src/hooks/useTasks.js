@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { todayKey } from '../utils/time';
 import { storageSet } from '../utils/storage';
+import { adapterRead } from '../utils/storageAdapter';
 
 const STORAGE_KEY = 'bulletman_tasks';
 
 function load() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    return JSON.parse(adapterRead(STORAGE_KEY)) || {};
   } catch {
     return {};
   }

@@ -56,6 +56,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('hotkey:timer-toggle', cb);
     return () => ipcRenderer.removeListener('hotkey:timer-toggle', cb);
   },
+
+  // Storage: bootstrap config
+  getConfig:   ()                   => ipcRenderer.invoke('storage:get-config'),
+  setConfig:   (cfg)                => ipcRenderer.invoke('storage:set-config', cfg),
+
+  // Storage: file-mode read/write
+  writeData:    (dir, key, val)     => ipcRenderer.invoke('storage:write',          dir, key, val),
+  readAllData:  (dir)               => ipcRenderer.invoke('storage:read-all',       dir),
+  backupCorrupt:(dir, key)          => ipcRenderer.invoke('storage:backup-corrupt', dir, key),
+
+  // Storage: folder picker
+  pickFolder:  ()                   => ipcRenderer.invoke('storage:pick-folder'),
 });
 
 window.addEventListener('DOMContentLoaded', () => {});

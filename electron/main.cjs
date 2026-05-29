@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, shell, nativeImage, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, Tray, Menu, shell, nativeImage, ipcMain, screen, powerMonitor, net } = require('electron');
 const path = require('path');
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -125,6 +125,58 @@ ipcMain.on('task:complete', (_, taskId) => {
   if (win) win.webContents.send('task:complete', taskId);
 });
 
+// ── Version check ────────────────────────────────────────────────────────────
+const RELEASES_API = 'https://api.github.com/repos/ManningTools/BulletMan/releases/latest';
+const RELEASES_PAGE = 'https://github.com/ManningTools/BulletMan/releases/latest';
+
+function isNewer(current, latest) {
+  const parse = v => v.replace(/^v/, '').split('.').map(Number);
+  const [c, l] = [parse(current), parse(latest)];
+  for (let i = 0; i < 3; i++) {
+    if ((l[i] || 0) > (c[i] || 0)) return true;
+    if ((l[i] || 0) < (c[i] || 0)) return false;
+  }
+  return false;
+}
+
+async function checkForUpdates() {
+  try {
+    const res = await net.fetch(RELEASES_API, {
+      headers: { 'User-Agent': `BulletMan/${app.getVersion()}` },
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const latest = (data.tag_name || data.name || '').trim();
+    if (latest && isNewer(app.getVersion(), latest)) {
+      const url = data.html_url || RELEASES_PAGE;
+      if (win) win.webContents.send('update:available', { version: latest.replace(/^v/, ''), url });
+    }
+  } catch { /* silently ignore network failures */ }
+}
+
+// ── Idle detection ────────────────────────────────────────────────────────────
+const IDLE_THRESHOLD = 10 * 60; // 10 minutes in seconds
+let idleThresholdCrossed = false;
+
+function setupIdleDetection() {
+  powerMonitor.on('suspend',      () => { if (win) win.webContents.send('idle:pause', 'suspend'); });
+  powerMonitor.on('lock-screen',  () => { if (win) win.webContents.send('idle:pause', 'lock'); });
+  powerMonitor.on('resume',       () => { idleThresholdCrossed = false; });
+  powerMonitor.on('unlock-screen',() => { idleThresholdCrossed = false; });
+
+  setInterval(() => {
+    const idleTime = powerMonitor.getSystemIdleTime();
+    if (idleTime >= IDLE_THRESHOLD) {
+      if (!idleThresholdCrossed) {
+        idleThresholdCrossed = true;
+        if (win) win.webContents.send('idle:pause', 'idle');
+      }
+    } else {
+      idleThresholdCrossed = false;
+    }
+  }, 30_000);
+}
+
 // ── Tray ──────────────────────────────────────────────────────────────────────
 function createTray() {
   const iconPath = isDev
@@ -161,6 +213,11 @@ app.isQuitting = false;
 app.whenReady().then(() => {
   createWindow();
   createTray();
+  setupIdleDetection();
+
+  win.webContents.once('did-finish-load', () => {
+    setTimeout(checkForUpdates, 2000);
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

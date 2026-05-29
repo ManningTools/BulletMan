@@ -29,7 +29,8 @@
       "Bash(xvfb-run --version)",
       "Bash(dpkg -l xvfb libnss3 libgbm1 libgtk-3-0)",
       "Bash(awk '{print $2, $3}')",
-      "Bash(npm ls *)"
+      "Bash(npm ls *)",
+      "Bash(npm test *)"
     ]
   }
 }

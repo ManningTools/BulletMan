@@ -36,9 +36,12 @@ export default function App() {
   const [weekOffset,   setWeekOffset]   = useState(0);
   const [pinnedIds,    setPinnedIds]    = useState([]);
   const [dragOverId,   setDragOverId]   = useState(null);
-  const draggedId  = useRef(null);
-  const inputRef   = useRef(null);
-  const headerRef  = useRef(null);
+  const [updateBanner, setUpdateBanner] = useState(null);  // { version, url }
+  const [idleToast,    setIdleToast]    = useState(null);  // string | null
+  const draggedId        = useRef(null);
+  const inputRef         = useRef(null);
+  const headerRef        = useRef(null);
+  const runningTaskIdRef = useRef(null);
 
   const {
     tasks, allTasks,
@@ -107,6 +110,37 @@ export default function App() {
     const removeComplete = window.electronAPI.onTaskComplete(id => completeTask(id, true));
     return () => { removeToggle?.(); removeClosed?.(); removeComplete?.(); };
   }, [toggleTimer, completeTask]);
+
+  // ── Idle detection ───────────────────────────────────────────────────────────
+  // Keep ref current so the IPC handler never closes over a stale task list
+  useEffect(() => {
+    runningTaskIdRef.current = tasks.find(t => t.timerRunning)?.id ?? null;
+  }, [tasks]);
+
+  useEffect(() => {
+    if (!window.electronAPI?.onIdlePause) return;
+    return window.electronAPI.onIdlePause((reason) => {
+      const id = runningTaskIdRef.current;
+      if (!id) return;
+      toggleTimer(id);
+      const msg = reason === 'suspend' ? 'Timer paused — machine went to sleep'
+                : reason === 'lock'    ? 'Timer paused — screen locked'
+                :                       'Timer paused — idle for 10+ minutes';
+      setIdleToast(msg);
+    });
+  }, [toggleTimer]);
+
+  useEffect(() => {
+    if (!idleToast) return;
+    const id = setTimeout(() => setIdleToast(null), 5000);
+    return () => clearTimeout(id);
+  }, [idleToast]);
+
+  // ── Update check ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!window.electronAPI?.onUpdateAvailable) return;
+    return window.electronAPI.onUpdateAvailable((info) => setUpdateBanner(info));
+  }, []);
 
   // ── Close all panels when clicking outside the header ─────────────────────────
   useEffect(() => {
@@ -271,6 +305,18 @@ export default function App() {
           <span>⚠ {storageError}</span>
           <button className="storage-error-dismiss" onClick={clearStorageError} title="Dismiss">✕</button>
         </div>
+      )}
+
+      {updateBanner && (
+        <div className="update-banner" role="status">
+          <span>BulletMan {updateBanner.version} is available —</span>
+          <a href={updateBanner.url} target="_blank" rel="noreferrer" className="update-banner-link">Download</a>
+          <button className="update-banner-dismiss" onClick={() => setUpdateBanner(null)} title="Dismiss">✕</button>
+        </div>
+      )}
+
+      {idleToast && (
+        <div className="idle-toast" role="status">{idleToast}</div>
       )}
 
       <main className="app-main">

@@ -119,7 +119,7 @@ Output goes to `release/`.
 
 ## Data & Privacy
 
-All data is stored in your browser's `localStorage` within the Electron context — nothing is sent to any server, ever. To back up or transfer your data, use your browser's developer tools to export the `bulletman_tasks`, `bulletman_clients`, `bulletman_settings`, and `bulletman_theme` keys.
+All data is stored in your browser's `localStorage` within the Electron context — nothing is sent to any server, ever. To back up or transfer your data, open the **gear icon (⚙)** in the app header → **Export Backup** to save a `.json` snapshot. Use **Import Backup** to restore it, or **Prune old data** to free space. The keys stored are `bulletman_tasks`, `bulletman_clients`, `bulletman_settings`, and `bulletman_theme`.
 
 ---
 

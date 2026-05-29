@@ -33,6 +33,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('task:complete', handler);
     return () => ipcRenderer.removeListener('task:complete', handler);
   },
+
+  // Machine suspended / screen locked / user idle — auto-pause running timer
+  onIdlePause: (cb) => {
+    const handler = (_, reason) => cb(reason);
+    ipcRenderer.on('idle:pause', handler);
+    return () => ipcRenderer.removeListener('idle:pause', handler);
+  },
+
+  // A newer release is available on GitHub
+  onUpdateAvailable: (cb) => {
+    const handler = (_, info) => cb(info);
+    ipcRenderer.on('update:available', handler);
+    return () => ipcRenderer.removeListener('update:available', handler);
+  },
 });
 
 window.addEventListener('DOMContentLoaded', () => {});

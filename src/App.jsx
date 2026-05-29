@@ -38,6 +38,7 @@ export default function App() {
   const [dragOverId,   setDragOverId]   = useState(null);
   const [updateBanner, setUpdateBanner] = useState(null);  // { version, url }
   const [idleToast,    setIdleToast]    = useState(null);  // string | null
+  const [hotkeyError,  setHotkeyError]  = useState(null);  // string | null
   const draggedId        = useRef(null);
   const inputRef         = useRef(null);
   const headerRef        = useRef(null);
@@ -53,7 +54,7 @@ export default function App() {
   } = useTasks();
 
   const { themeId, isDark, customBg, customAccent, setPreset, toggleDark, activateCustom } = useTheme();
-  const { globalHourlyRate, setGlobalHourlyRate } = useSettings();
+  const { globalHourlyRate, setGlobalHourlyRate, hotkeyShortcut, setHotkeyShortcut } = useSettings();
   const {
     clients, CLIENT_COLORS,
     addClient, editClient, deleteClient,
@@ -142,6 +143,22 @@ export default function App() {
     return window.electronAPI.onUpdateAvailable((info) => setUpdateBanner(info));
   }, []);
 
+  // ── Global hotkey ─────────────────────────────────────────────────────────────
+  // Re-register with main process whenever the saved shortcut changes
+  useEffect(() => {
+    if (!window.electronAPI?.registerHotkey) return;
+    window.electronAPI.registerHotkey(hotkeyShortcut);
+  }, [hotkeyShortcut]);
+
+  // Handle the hotkey firing — toggle the running timer
+  useEffect(() => {
+    if (!window.electronAPI?.onHotkeyToggle) return;
+    return window.electronAPI.onHotkeyToggle(() => {
+      const id = runningTaskIdRef.current;
+      if (id) toggleTimer(id);
+    });
+  }, [toggleTimer]);
+
   // ── Close all panels when clicking outside the header ─────────────────────────
   useEffect(() => {
     function handler(e) {
@@ -157,6 +174,21 @@ export default function App() {
 
   // ── Live allTasks — today's entries carry live displaySeconds from running timer ─
   const liveAllTasks = useMemo(() => ({ ...allTasks, [todayKey()]: tasks }), [allTasks, tasks]);
+
+  // ── Hotkey change handler ─────────────────────────────────────────────────────
+  const handleSetHotkey = useCallback(async (shortcut) => {
+    if (!window.electronAPI?.registerHotkey) {
+      setHotkeyShortcut(shortcut);
+      return;
+    }
+    const result = await window.electronAPI.registerHotkey(shortcut);
+    if (result?.ok !== false) {
+      setHotkeyShortcut(shortcut);
+      setHotkeyError(null);
+    } else {
+      setHotkeyError('Shortcut already in use or invalid');
+    }
+  }, [setHotkeyShortcut]);
 
   // ── Export handlers ───────────────────────────────────────────────────────────
   const handleExportDay   = useCallback(() => exportDay(tasks, globalHourlyRate, todayKey(), clients), [tasks, globalHourlyRate, clients]);
@@ -276,6 +308,10 @@ export default function App() {
               <SettingsPanel
                 globalHourlyRate={globalHourlyRate}
                 onSetRate={setGlobalHourlyRate}
+                hotkeyShortcut={hotkeyShortcut}
+                onSetHotkey={handleSetHotkey}
+                hotkeyError={hotkeyError}
+                isElectron={!!window.electronAPI}
                 onClose={() => setShowSettings(false)}
               />
             )}

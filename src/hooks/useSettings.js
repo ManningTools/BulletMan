@@ -11,10 +11,13 @@ function load() {
   }
 }
 
+const DEFAULT_HOTKEY = 'CommandOrControl+Shift+Space';
+
 export function useSettings() {
   const [settings, setSettings] = useState(load);
 
   const globalHourlyRate = settings.globalHourlyRate ?? 0;
+  const hotkeyShortcut   = settings.hotkeyShortcut ?? DEFAULT_HOTKEY;
 
   const setGlobalHourlyRate = useCallback((raw) => {
     const n = parseFloat(raw);
@@ -26,5 +29,13 @@ export function useSettings() {
     });
   }, []);
 
-  return { globalHourlyRate, setGlobalHourlyRate };
+  const setHotkeyShortcut = useCallback((shortcut) => {
+    setSettings(prev => {
+      const updated = { ...prev, hotkeyShortcut: shortcut };
+      storageSet(SETTINGS_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  return { globalHourlyRate, setGlobalHourlyRate, hotkeyShortcut, setHotkeyShortcut };
 }

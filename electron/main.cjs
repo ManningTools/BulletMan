@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, shell, nativeImage, ipcMain, screen, powerMonitor, net } = require('electron');
+const { app, BrowserWindow, Tray, Menu, shell, nativeImage, ipcMain, screen, powerMonitor, net, globalShortcut } = require('electron');
 const path = require('path');
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -125,6 +125,22 @@ ipcMain.on('task:complete', (_, taskId) => {
   if (win) win.webContents.send('task:complete', taskId);
 });
 
+// ── Global hotkey ─────────────────────────────────────────────────────────────
+let registeredHotkey = null;
+
+ipcMain.handle('hotkey:register', (_, shortcut) => {
+  if (registeredHotkey) {
+    globalShortcut.unregister(registeredHotkey);
+    registeredHotkey = null;
+  }
+  if (!shortcut) return { ok: true };
+  const ok = globalShortcut.register(shortcut, () => {
+    if (win) win.webContents.send('hotkey:timer-toggle');
+  });
+  if (ok) registeredHotkey = shortcut;
+  return { ok };
+});
+
 // ── Version check ────────────────────────────────────────────────────────────
 const RELEASES_API = 'https://api.github.com/repos/ManningTools/BulletMan/releases/latest';
 const RELEASES_PAGE = 'https://github.com/ManningTools/BulletMan/releases/latest';
@@ -226,4 +242,4 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => { /* stay in tray */ });
-app.on('before-quit', () => { app.isQuitting = true; });
+app.on('before-quit', () => { app.isQuitting = true; globalShortcut.unregisterAll(); });

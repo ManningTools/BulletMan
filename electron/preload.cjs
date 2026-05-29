@@ -47,6 +47,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('update:available', handler);
     return () => ipcRenderer.removeListener('update:available', handler);
   },
+
+  // Register (or unregister) the global hotkey; returns { ok: boolean }
+  registerHotkey: (shortcut) => ipcRenderer.invoke('hotkey:register', shortcut),
+
+  // Global hotkey was pressed — toggle the running timer
+  onHotkeyToggle: (cb) => {
+    ipcRenderer.on('hotkey:timer-toggle', cb);
+    return () => ipcRenderer.removeListener('hotkey:timer-toggle', cb);
+  },
 });
 
 window.addEventListener('DOMContentLoaded', () => {});
